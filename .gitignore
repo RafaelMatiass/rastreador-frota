@@ -1,0 +1,54 @@
+# Este .gitignore cobre o app principal E todas as PoCs (múltiplos projetos Android
+# dentro do mesmo repositório). Os padrões abaixo não usam caminho fixo, então valem
+# para qualquer subpasta (app/, pocs/e1-auth/aluno_a/, etc.)
+
+# Gradle
+.gradle/
+build/
+**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Android Studio / IntelliJ
+.idea/
+**/.idea/
+*.iml
+*.ipr
+*.iws
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configs (contém caminhos específicos de cada máquina)
+local.properties
+
+# Log/Cache
+*.log
+.DS_Store
+
+# Signing / Keystores (nunca versionar chaves)
+*.jks
+*.keystore
+
+# Android Profiling
+*.hprof
+
+# Freeline
+freeline.py
+freeline/
+freeline_project_description.json
+
+# Kotlin
+.kotlin/
+
+# Fastlane (caso usado futuramente para CI/CD)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/readme.md
+
+# VS Code (caso alguém use para editar docs/scripts)
+.vscode/
