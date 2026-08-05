@@ -2,17 +2,7 @@
 # dentro do mesmo repositório). Os padrões abaixo não usam caminho fixo, então valem
 # para qualquer subpasta (app/, pocs/e1-auth/aluno_a/, etc.)
 
-# Gradle
-.gradle/
-build/
-**/build/
-gradle-app.setting
-!gradle-wrapper.jar
-!gradle-wrapper.properties
-
 # Android Studio / IntelliJ
-.idea/
-**/.idea/
 *.iml
 *.ipr
 *.iws
@@ -20,9 +10,6 @@ gradle-app.setting
 captures/
 .externalNativeBuild/
 .cxx/
-
-# Local configs (contém caminhos específicos de cada máquina)
-local.properties
 
 # Log/Cache
 *.log
@@ -40,8 +27,6 @@ freeline.py
 freeline/
 freeline_project_description.json
 
-# Kotlin
-.kotlin/
 
 # Fastlane (caso usado futuramente para CI/CD)
 fastlane/report.xml
@@ -50,5 +35,3 @@ fastlane/screenshots
 fastlane/test_output
 fastlane/readme.md
 
-# VS Code (caso alguém use para editar docs/scripts)
-.vscode/
