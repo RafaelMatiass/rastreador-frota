@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "810630952351",
+    "project_id": "rastreador-frota",
+    "storage_bucket": "rastreador-frota.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:810630952351:android:0adb555f52b4380e3f39aa",
+        "android_client_info": {
+          "package_name": "br.com.rastreadorfrota"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIGBEpZygKGYu4w5-zwye2LcGvbFdAJSo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
