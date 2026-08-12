@@ -7,9 +7,8 @@
 - Como o Android Studio vincula o projeto ao Firebase (Tools > Firebase)
 
 ## O que testei
-- Criei um usuário de teste no console do Firebase (email/senha)
-- Chamei firebaseAuth.signInWithEmailAndPassword(email, senha) e tratei
-  o resultado com coroutines (.await())
+- Criei um projeto de teste e criei um no console do Firebase (email/senha)
+- Chamei firebaseAuth.signInWithEmailAndPassword(email, senha)
 - Testei também com senha errada, pra ver o app tratar o erro
 
 ## O que aprendi / dificuldades

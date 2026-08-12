@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1032167978182",
+    "project_id": "teste-1fa06",
+    "storage_bucket": "teste-1fa06.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032167978182:android:8dd3b7ea684d0fa31fd3c7",
+        "android_client_info": {
+          "package_name": "br.com.pocteste.authfirebase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeSVMdfY3Z-4GYDJHuMm0gRd7nt_qMF9I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
