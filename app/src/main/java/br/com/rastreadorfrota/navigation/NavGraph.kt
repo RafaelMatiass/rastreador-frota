@@ -5,12 +5,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import br.com.rastreadorfrota.ui.screens.CadastroMotoristaScreen
+import br.com.rastreadorfrota.ui.screens.CadastroVeiculoScreen
 import br.com.rastreadorfrota.ui.screens.HomeScreen
 import br.com.rastreadorfrota.ui.screens.LoginScreen
 
 object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
+    const val CADASTRO_VEICULO = "cadastro_veiculo"
+    const val CADASTRO_MOTORISTA = "cadastro_motorista"
 }
 
 @Composable
@@ -31,8 +35,16 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.HOME) { inclusive = true }
                     }
-                }
+                },
+                onCadastrarVeiculo = { navController.navigate(Routes.CADASTRO_VEICULO) },
+                onCadastrarMotorista = { navController.navigate(Routes.CADASTRO_MOTORISTA) }
             )
+        }
+        composable(Routes.CADASTRO_VEICULO) {
+            CadastroVeiculoScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.CADASTRO_MOTORISTA) {
+            CadastroMotoristaScreen(onBack = { navController.popBackStack() })
         }
     }
 }

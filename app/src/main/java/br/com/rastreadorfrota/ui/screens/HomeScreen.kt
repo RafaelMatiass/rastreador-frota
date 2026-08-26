@@ -2,10 +2,12 @@ package br.com.rastreadorfrota.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,8 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import br.com.rastreadorfrota.auth.AuthRepository
 
+
+
 @Composable
-fun HomeScreen(onLogout: () -> Unit) {
+fun HomeScreen(
+    onLogout: () -> Unit,
+    onCadastrarVeiculo: () -> Unit,
+    onCadastrarMotorista: () -> Unit
+) {
     val authRepository = AuthRepository()
     val userEmail = authRepository.currentUser?.email ?: "usuário"
 
@@ -33,7 +41,19 @@ fun HomeScreen(onLogout: () -> Unit) {
 
             androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 24.dp))
 
-            Button(onClick = {
+            Button(onClick = onCadastrarVeiculo, modifier = Modifier.fillMaxWidth()) {
+                Text("Cadastrar veículo")
+            }
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 12.dp))
+
+            Button(onClick = onCadastrarMotorista, modifier = Modifier.fillMaxWidth()) {
+                Text("Cadastrar motorista")
+            }
+
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 24.dp))
+
+            OutlinedButton(onClick = {
                 authRepository.logout()
                 onLogout()
             }) {
