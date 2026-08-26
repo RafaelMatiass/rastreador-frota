@@ -50,6 +50,7 @@ class LoginViewModel(
                 authRepository.login(email.trim(), password)
                 uiState = LoginUiState.Success
             } catch (e: Exception) {
+                android.util.Log.e("LoginDebug", "Erro no login", e)
                 uiState = LoginUiState.Error(mensagemDeErro(e))
             }
         }
