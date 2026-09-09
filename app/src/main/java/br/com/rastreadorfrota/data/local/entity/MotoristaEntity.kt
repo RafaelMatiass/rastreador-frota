@@ -26,5 +26,8 @@ data class MotoristaEntity(
     val email: String,
     val veiculoId: Long? = null,
     val ativo: Boolean = true,
-    val sincronizado: Boolean = false
+    val sincronizado: Boolean = false,
+    val remoteId: String? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedLocally: Boolean = false
 )

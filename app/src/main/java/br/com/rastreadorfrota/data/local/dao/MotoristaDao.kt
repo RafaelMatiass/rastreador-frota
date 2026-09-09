@@ -20,9 +20,18 @@ interface MotoristaDao {
     @Delete
     suspend fun deletar(motorista: MotoristaEntity)
 
-    @Query("SELECT * FROM motoristas ORDER BY nome ASC")
+    @Query("SELECT * FROM motoristas WHERE deletedLocally = 0 ORDER BY nome ASC")
     fun observarTodos(): Flow<List<MotoristaEntity>>
 
     @Query("SELECT * FROM motoristas WHERE id = :id")
     suspend fun buscarPorId(id: Long): MotoristaEntity?
+
+    @Query("SELECT * FROM motoristas WHERE sincronizado = 0")
+    suspend fun listarPendentes(): List<MotoristaEntity>
+
+    @Query("SELECT * FROM motoristas WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun buscarPorRemoteId(remoteId: String): MotoristaEntity?
+
+    @Query("DELETE FROM motoristas WHERE id = :id")
+    suspend fun excluirDefinitivo(id: Long)
 }

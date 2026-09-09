@@ -76,6 +76,7 @@ dependencies {
     // então Flow/suspend já funcionam sem dependência extra
     val roomVersion = "2.8.4"
     implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("androidx.room:room-runtime:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 

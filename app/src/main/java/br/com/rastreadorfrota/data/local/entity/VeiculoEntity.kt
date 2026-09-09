@@ -12,6 +12,8 @@ data class VeiculoEntity(
     val tipo: String, // nome do TipoVeiculo
     val capacidadeCargaKg: Double? = null,
     val ativo: Boolean = true,
-    // preparado para a Entrega 3 (sincronização com Firestore)
-    val sincronizado: Boolean = false
+    val sincronizado: Boolean = false,        // false = tem alteração local pendente de envio
+    val remoteId: String? = null,             // id do documento no Firestore (nulo até subir pela 1ª vez)
+    val updatedAt: Long = System.currentTimeMillis(), // usado no last-write-wins do pull
+    val deletedLocally: Boolean = false       // soft delete: só apaga de vez após confirmar no Firestore
 )

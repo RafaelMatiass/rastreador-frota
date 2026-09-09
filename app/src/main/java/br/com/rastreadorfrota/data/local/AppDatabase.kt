@@ -11,7 +11,7 @@ import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 
 @Database(
     entities = [VeiculoEntity::class, MotoristaEntity::class],
-    version = 1,
+    version = 2, // v2: campos remoteId/updatedAt/deletedLocally (Entrega 3 - sync)
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,8 +30,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "rastreadorfrota.db"
                 )
-                    // Ideal seria escrever Migrations quando o schema mudar;
-                    // destructive é aceitável agora pois ainda estamos na fase 1.
                     .fallbackToDestructiveMigration()
                     .build().also { INSTANCE = it }
             }

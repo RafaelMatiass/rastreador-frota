@@ -7,7 +7,18 @@ import kotlinx.coroutines.flow.Flow
 class MotoristaRepository(private val dao: MotoristaDao) {
     val motoristas: Flow<List<MotoristaEntity>> = dao.observarTodos()
 
-    suspend fun salvar(motorista: MotoristaEntity) = dao.inserir(motorista)
-    suspend fun atualizar(motorista: MotoristaEntity) = dao.atualizar(motorista)
-    suspend fun remover(motorista: MotoristaEntity) = dao.deletar(motorista)
+    suspend fun salvar(motorista: MotoristaEntity) =
+        dao.inserir(motorista.copy(sincronizado = false, updatedAt = System.currentTimeMillis()))
+
+    suspend fun atualizar(motorista: MotoristaEntity) =
+        dao.atualizar(motorista.copy(sincronizado = false, updatedAt = System.currentTimeMillis()))
+
+    suspend fun remover(motorista: MotoristaEntity) =
+        dao.atualizar(
+            motorista.copy(
+                deletedLocally = true,
+                sincronizado = false,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
 }
