@@ -2,10 +2,19 @@ package br.com.rastreadorfrota.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Blue40 = Color(0xFF1565C0)
-val Blue80 = Color(0xFFAECBFA)
-val Orange40 = Color(0xFFEF6C00)
-val Orange80 = Color(0xFFFFCC80)
-val Neutral40 = Color(0xFF49454F)
-val Neutral90 = Color(0xFFE6E1E5)
-val ErrorRed = Color(0xFFBA1A1A)
+// Paleta oficial TrakSync
+val Background = Color(0xFF07111F)
+val Surface = Color(0xFF0D1B2A)
+val Surface2 = Color(0xFF13263A)
+
+val Primary = Color(0xFF1677FF)
+val Cyan = Color(0xFF00D9FF)
+
+val TextPrimary = Color(0xFFF4F7FB)
+val TextSecondary = Color(0xFF8FA4BA)
+
+val Success = Color(0xFF20D68A)
+val Warning = Color(0xFFFFB84D)
+val ErrorRed = Color(0xFFFF4D67)
+
+val OnPrimary = Color(0xFFFFFFFF)

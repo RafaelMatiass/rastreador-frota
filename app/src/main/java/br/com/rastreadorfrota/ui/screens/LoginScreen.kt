@@ -1,23 +1,24 @@
 package br.com.rastreadorfrota.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -26,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.rastreadorfrota.auth.LoginUiState
 import br.com.rastreadorfrota.auth.LoginViewModel
+import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
+import br.com.rastreadorfrota.ui.theme.trakSyncPrimaryButtonColors
+import br.com.rastreadorfrota.ui.theme.trakSyncTextFieldColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,17 +45,37 @@ fun LoginScreen(
         }
     }
 
-    Scaffold { paddingValues ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = 28.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Rastreador de Frota", style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+            // Wordmark: TRAK (branco) + SYNC (ciano)
+            Row {
+                Text(
+                    text = "TRAK",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "SYNC",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = TrakSyncTheme.colors.cyan
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Every vehicle. One view.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TrakSyncTheme.colors.textSecondary
+            )
 
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 24.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
             OutlinedTextField(
                 value = viewModel.email,
@@ -59,10 +83,12 @@ fun LoginScreen(
                 label = { Text("Email") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                shape = MaterialTheme.shapes.medium,
+                colors = trakSyncTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             OutlinedTextField(
                 value = viewModel.password,
@@ -71,28 +97,45 @@ fun LoginScreen(
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = MaterialTheme.shapes.medium,
+                colors = trakSyncTextFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 20.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             when (state) {
                 is LoginUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
                 is LoginUiState.Error -> {
                     Text(
                         text = state.message,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 8.dp))
-                    Button(onClick = viewModel::login, modifier = Modifier.fillMaxWidth()) {
-                        Text("Entrar")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = viewModel::login,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = trakSyncPrimaryButtonColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text("Entrar", style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 else -> {
-                    Button(onClick = viewModel::login, modifier = Modifier.fillMaxWidth()) {
-                        Text("Entrar")
+                    Button(
+                        onClick = viewModel::login,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = trakSyncPrimaryButtonColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text("Entrar", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

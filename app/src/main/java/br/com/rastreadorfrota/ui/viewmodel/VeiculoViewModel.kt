@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import br.com.rastreadorfrota.data.local.AppDatabase
 import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 import br.com.rastreadorfrota.data.repository.VeiculoRepository
+import br.com.rastreadorfrota.data.sync.SyncTrigger
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -33,10 +34,14 @@ class VeiculoViewModel(application: Application) : AndroidViewModel(application)
                     capacidadeCargaKg = capacidadeCargaKg
                 )
             )
+            SyncTrigger.requestSync()
         }
     }
 
     fun removerVeiculo(veiculo: VeiculoEntity) {
-        viewModelScope.launch { repository.remover(veiculo) }
+        viewModelScope.launch {
+            repository.remover(veiculo)
+            SyncTrigger.requestSync()
+        }
     }
 }

@@ -8,6 +8,7 @@ import br.com.rastreadorfrota.data.local.entity.MotoristaEntity
 import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 import br.com.rastreadorfrota.data.repository.MotoristaRepository
 import br.com.rastreadorfrota.data.repository.VeiculoRepository
+import br.com.rastreadorfrota.data.sync.SyncTrigger
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -42,10 +43,14 @@ class MotoristaViewModel(application: Application) : AndroidViewModel(applicatio
                     veiculoId = veiculoId
                 )
             )
+            SyncTrigger.requestSync()
         }
     }
 
     fun removerMotorista(motorista: MotoristaEntity) {
-        viewModelScope.launch { repository.remover(motorista) }
+        viewModelScope.launch {
+            repository.remover(motorista)
+            SyncTrigger.requestSync()
+        }
     }
 }
