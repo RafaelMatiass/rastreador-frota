@@ -12,12 +12,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -71,7 +72,7 @@ fun CadastroMotoristaScreen(
                 title = { Text("Motoristas") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -151,7 +152,7 @@ fun CadastroMotoristaScreen(
                         colors = trakSyncTextFieldColors(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                     )
                     ExposedDropdownMenu(
                         expanded = expandedVeiculo,
@@ -195,7 +196,7 @@ fun CadastroMotoristaScreen(
             }
 
             item {
-                Divider(modifier = Modifier.padding(vertical = 8.dp), color = TrakSyncTheme.colors.surface2)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = TrakSyncTheme.colors.surface2)
                 Text(
                     "Motoristas cadastrados (${motoristas.size})",
                     style = MaterialTheme.typography.titleMedium,

@@ -54,6 +54,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.8.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     // Firebase (BoM controla as versões de todos os módulos abaixo)
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))

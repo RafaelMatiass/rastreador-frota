@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -47,13 +52,18 @@ import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 import br.com.rastreadorfrota.ui.theme.trakSyncPrimaryButtonColors
 import br.com.rastreadorfrota.ui.viewmodel.SyncStatus
 import br.com.rastreadorfrota.ui.viewmodel.SyncViewModel
+import br.com.rastreadorfrota.ui.viewmodel.VeiculoViewModel
+import br.com.rastreadorfrota.ui.viewmodel.MotoristaViewModel
 
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
     onCadastrarVeiculo: () -> Unit,
     onCadastrarMotorista: () -> Unit,
-    syncViewModel: SyncViewModel = viewModel()
+    onAbrirMapa: () -> Unit,
+    syncViewModel: SyncViewModel = viewModel(),
+    veiculoViewModel: VeiculoViewModel = viewModel(),
+    motoristaViewModel: MotoristaViewModel = viewModel()
 ) {
     val authRepository = AuthRepository()
     val userEmail = authRepository.currentUser?.email ?: "usuário"
@@ -61,6 +71,8 @@ fun HomeScreen(
 
     val isOnline by syncViewModel.isOnline.collectAsState()
     val status by syncViewModel.status.collectAsState()
+    val veiculos by veiculoViewModel.veiculos.collectAsState()
+    val motoristas by motoristaViewModel.motoristas.collectAsState()
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { paddingValues ->
         Column(
@@ -68,7 +80,8 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(paddingValues)
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -95,7 +108,34 @@ fun HomeScreen(
             )
             Text(userEmail, style = MaterialTheme.typography.bodyMedium, color = TrakSyncTheme.colors.textSecondary)
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                "Visão geral da operação",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MetricCard(
+                    icon = Icons.Default.DirectionsCar,
+                    value = veiculos.size.toString(),
+                    label = "Veículos",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCard(
+                    icon = Icons.Default.Person,
+                    value = motoristas.size.toString(),
+                    label = "Motoristas",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
                 onClick = onCadastrarVeiculo,
@@ -119,6 +159,17 @@ fun HomeScreen(
                 Text("Cadastrar motorista", style = MaterialTheme.typography.labelLarge)
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onAbrirMapa,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Map, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Abrir mapa da frota", style = MaterialTheme.typography.labelLarge)
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             SyncCard(
@@ -139,6 +190,36 @@ fun HomeScreen(
             ) {
                 Text("Sair")
             }
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = TrakSyncTheme.colors.surface2)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(label, style = MaterialTheme.typography.bodySmall, color = TrakSyncTheme.colors.textSecondary)
         }
     }
 }

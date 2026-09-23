@@ -11,6 +11,7 @@ data class VeiculoEntity(
     val modelo: String,
     val tipo: String, // nome do TipoVeiculo
     val capacidadeCargaKg: Double? = null,
+    val fotoLocalPath: String? = null,
     val ativo: Boolean = true,
     val sincronizado: Boolean = false,        // false = tem alteração local pendente de envio
     val remoteId: String? = null,             // id do documento no Firestore (nulo até subir pela 1ª vez)

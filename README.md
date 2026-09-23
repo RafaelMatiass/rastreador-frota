@@ -72,6 +72,7 @@ pocs/
 | Entrega | PoC | Descrição |
 |---|---|---|
 | Entrega 2 | App de notas com Room | Demonstra o uso isolado do Room/SQLite para persistência local |
+| Entrega 4 | Fotos locais | Demonstra captura e persistência no filesystem do dispositivo |
 
 </details>
 
@@ -80,7 +81,7 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
-<summary>📦 <b>Entrega 2 — Concluída</b></summary>
+<summary>📦 <b>Entrega 4 / Semana 9 — Concluída</b></summary>
 
 <br>
 
@@ -99,7 +100,19 @@ pocs/
 - [x] `CadastroVeiculoScreen` — formulário + lista em tempo real
 - [x] `CadastroMotoristaScreen` — formulário + lista em tempo real
 - [x] Atualização do `NavGraph.kt` (novas rotas)
-- [x] Atualização do `HomeScreen.kt`
+- [x] Dashboard da frota na `HomeScreen.kt`
+
+**Fotos locais**
+- [x] Captura pela câmera ou seleção na galeria
+- [x] Cópia para o armazenamento interno privado do dispositivo
+- [x] Caminho da foto persistido localmente no Room
+- [x] Remoção do arquivo ao remover o veículo
+
+**Mapa da frota — Semana 11**
+- [x] Mapa OpenStreetMap integrado com osM
+- [x] Marcadores dos veículos cadastrados
+- [x] Posições, velocidade e estado simulados para demonstração
+- [x] Atualização automática das posições a cada quatro segundos
 
 **PoC**
 - [x] Projeto isolado demonstrando Room com app de notas

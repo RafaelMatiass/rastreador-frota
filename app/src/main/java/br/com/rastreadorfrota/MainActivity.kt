@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import br.com.rastreadorfrota.navigation.NavGraph
 import br.com.rastreadorfrota.ui.theme.RastreadorFrotaTheme
 
-class MainAsctivity : ComponentActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 class VeiculoViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -24,14 +25,21 @@ class VeiculoViewModel(application: Application) : AndroidViewModel(application)
         initialValue = emptyList()
     )
 
-    fun salvarVeiculo(placa: String, modelo: String, tipo: String, capacidadeCargaKg: Double?) {
+    fun salvarVeiculo(
+        placa: String,
+        modelo: String,
+        tipo: String,
+        capacidadeCargaKg: Double?,
+        fotoLocalPath: String?
+    ) {
         viewModelScope.launch {
             repository.salvar(
                 VeiculoEntity(
                     placa = placa.trim().uppercase(),
                     modelo = modelo.trim(),
                     tipo = tipo,
-                    capacidadeCargaKg = capacidadeCargaKg
+                    capacidadeCargaKg = capacidadeCargaKg,
+                    fotoLocalPath = fotoLocalPath
                 )
             )
             SyncTrigger.requestSync()
@@ -40,6 +48,7 @@ class VeiculoViewModel(application: Application) : AndroidViewModel(application)
 
     fun removerVeiculo(veiculo: VeiculoEntity) {
         viewModelScope.launch {
+            veiculo.fotoLocalPath?.let { File(it).delete() }
             repository.remover(veiculo)
             SyncTrigger.requestSync()
         }

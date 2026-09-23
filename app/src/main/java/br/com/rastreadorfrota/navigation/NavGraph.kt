@@ -9,12 +9,14 @@ import br.com.rastreadorfrota.ui.screens.CadastroMotoristaScreen
 import br.com.rastreadorfrota.ui.screens.CadastroVeiculoScreen
 import br.com.rastreadorfrota.ui.screens.HomeScreen
 import br.com.rastreadorfrota.ui.screens.LoginScreen
+import br.com.rastreadorfrota.ui.screens.MapaFrotaScreen
 
 object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
     const val CADASTRO_VEICULO = "cadastro_veiculo"
     const val CADASTRO_MOTORISTA = "cadastro_motorista"
+    const val MAPA_FROTA = "mapa_frota"
 }
 
 @Composable
@@ -37,7 +39,8 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                     }
                 },
                 onCadastrarVeiculo = { navController.navigate(Routes.CADASTRO_VEICULO) },
-                onCadastrarMotorista = { navController.navigate(Routes.CADASTRO_MOTORISTA) }
+                onCadastrarMotorista = { navController.navigate(Routes.CADASTRO_MOTORISTA) },
+                onAbrirMapa = { navController.navigate(Routes.MAPA_FROTA) }
             )
         }
         composable(Routes.CADASTRO_VEICULO) {
@@ -45,6 +48,9 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
         }
         composable(Routes.CADASTRO_MOTORISTA) {
             CadastroMotoristaScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.MAPA_FROTA) {
+            MapaFrotaScreen(onBack = { navController.popBackStack() })
         }
     }
 }
