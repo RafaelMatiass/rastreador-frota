@@ -2,9 +2,11 @@ package br.com.rastreadorfrota.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import br.com.rastreadorfrota.auth.Perfil
 import br.com.rastreadorfrota.ui.screens.CadastroUsuarioScreen
 import br.com.rastreadorfrota.ui.screens.CadastroVeiculoScreen
@@ -24,6 +26,10 @@ object Routes {
     const val CADASTRO_VEICULO = "cadastro_veiculo"
     const val MOTORISTAS = "motoristas"
     const val MAPA_FROTA = "mapa_frota"
+    const val MAPA_MOTORISTA = "mapa_motorista?veiculo={veiculo}"
+
+    fun mapaMotorista(veiculoRemoteId: String?) =
+        "mapa_motorista" + (veiculoRemoteId?.let { "?veiculo=$it" } ?: "")
 
     fun homeDo(perfil: Perfil) = when (perfil) {
         Perfil.CONTROLADOR -> HOME_CONTROLADOR
@@ -66,7 +72,7 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             HomeMotoristaScreen(
                 onAbrirPerfil = { navController.navigate(Routes.PERFIL) },
                 onCadastrarVeiculo = { navController.navigate(Routes.CADASTRO_VEICULO) },
-                onAbrirMapa = { navController.navigate(Routes.MAPA_FROTA) }
+                onAbrirMapa = { veiculoRemoteId -> navController.navigate(Routes.mapaMotorista(veiculoRemoteId)) }
             )
         }
         composable(Routes.PERFIL) {
@@ -87,6 +93,16 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
         }
         composable(Routes.MAPA_FROTA) {
             MapaFrotaScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            Routes.MAPA_MOTORISTA,
+            arguments = listOf(navArgument("veiculo") { type = NavType.StringType; nullable = true })
+        ) { entry ->
+            MapaFrotaScreen(
+                onBack = { navController.popBackStack() },
+                modoMotorista = true,
+                veiculoRemoteId = entry.arguments?.getString("veiculo")
+            )
         }
     }
 }

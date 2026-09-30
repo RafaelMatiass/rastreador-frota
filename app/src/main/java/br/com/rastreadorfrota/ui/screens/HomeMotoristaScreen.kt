@@ -56,7 +56,7 @@ import br.com.rastreadorfrota.ui.viewmodel.VeiculoViewModel
 fun HomeMotoristaScreen(
     onAbrirPerfil: () -> Unit,
     onCadastrarVeiculo: () -> Unit,
-    onAbrirMapa: () -> Unit,
+    onAbrirMapa: (veiculoRemoteId: String?) -> Unit,
     perfilViewModel: PerfilViewModel = viewModel(),
     syncViewModel: SyncViewModel = viewModel(),
     veiculoViewModel: VeiculoViewModel = viewModel()
@@ -117,13 +117,13 @@ fun HomeMotoristaScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
-                onClick = onAbrirMapa,
+                onClick = { onAbrirMapa(perfilViewModel.usuario?.veiculoRemoteId) },
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Map, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Abrir mapa", style = MaterialTheme.typography.labelLarge)
+                Text("Ver meu veículo no mapa", style = MaterialTheme.typography.labelLarge)
             }
 
             Spacer(modifier = Modifier.height(24.dp))

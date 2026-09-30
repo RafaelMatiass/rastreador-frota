@@ -73,6 +73,8 @@ pocs/
 |---|---|---|
 | Entrega 2 | App de notas com Room | Demonstra o uso isolado do Room/SQLite para persistência local |
 | Entrega 4 | Fotos locais | Demonstra captura e persistência no filesystem do dispositivo |
+| Entrega 5 | Mapa da frota (`e5-mapa/otavio`) | Mapa OpenStreetMap com osmdroid e marcador com posições simuladas |
+| Entrega 5 | Simulador de telemetria (`e5-mapa/rafael`) | Sequência pré-determinada de posições com telemetria, loop único com `StateFlow` e cor do marcador por status |
 
 </details>
 
@@ -81,6 +83,23 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
+<summary>🗺️ <b>Entrega 5 / Semana 11 — Veículos parados e em trânsito no mapa</b></summary>
+
+<br>
+
+- [x] Simulação de posição e telemetria no próprio app (`simulacao/`): rotas pré-determinadas em Araraquara, com velocidade, motor e portas em cada ponto
+- [x] Passo da simulação derivado do relógio: não reinicia ao sair do mapa e fica igual em todos os aparelhos
+- [x] Marcador verde (em trânsito) ou âmbar (parado), criado uma vez e só atualizado a cada passo
+- [x] Filtro Todos / Em trânsito / Parados, com contagem
+- [x] Painel de telemetria do veículo selecionado; o mapa segue o veículo
+- [x] Motorista vê só o veículo associado a ele
+- [x] PoC `pocs/e5-mapa/rafael` (simulador de telemetria)
+
+Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega5.md`](docs/entrega5.md)
+
+</details>
+
+<details>
 <summary>📦 <b>Entrega 4 / Semana 9 — Concluída</b></summary>
 
 <br>
