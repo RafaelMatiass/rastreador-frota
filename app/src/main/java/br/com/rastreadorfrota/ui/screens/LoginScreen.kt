@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.rastreadorfrota.auth.LoginUiState
 import br.com.rastreadorfrota.auth.LoginViewModel
+import br.com.rastreadorfrota.auth.Perfil
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 import br.com.rastreadorfrota.ui.theme.trakSyncPrimaryButtonColors
 import br.com.rastreadorfrota.ui.theme.trakSyncTextFieldColors
@@ -34,14 +36,15 @@ import br.com.rastreadorfrota.ui.theme.trakSyncTextFieldColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (Perfil) -> Unit,
+    onCriarConta: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
     val state = viewModel.uiState
 
     LaunchedEffect(state) {
         if (state is LoginUiState.Success) {
-            onLoginSuccess()
+            onLoginSuccess(state.perfil)
         }
     }
 
@@ -138,6 +141,14 @@ fun LoginScreen(
                         Text("Entrar", style = MaterialTheme.typography.labelLarge)
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(
+                onClick = onCriarConta,
+                enabled = state !is LoginUiState.Loading
+            ) {
+                Text("Não tem conta? Cadastre-se", color = TrakSyncTheme.colors.cyan)
             }
         }
     }

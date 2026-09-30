@@ -5,16 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import kotlinx.coroutines.launch
-import java.io.IOException
 
 sealed interface LoginUiState {
     data object Idle : LoginUiState
     data object Loading : LoginUiState
-    data object Success : LoginUiState
+    data class Success(val perfil: Perfil) : LoginUiState
     data class Error(val message: String) : LoginUiState
 }
 
@@ -30,6 +26,15 @@ class LoginViewModel(
 
     var uiState: LoginUiState by mutableStateOf(LoginUiState.Idle)
         private set
+
+    init {
+        // Sessão já existente (app reaberto): pula o formulário e vai direto
+        // pra tela do perfil, sem pedir a senha de novo.
+        if (authRepository.currentUser != null) {
+            uiState = LoginUiState.Loading
+            viewModelScope.launch { entrarComPerfil() }
+        }
+    }
 
     fun onEmailChange(value: String) {
         email = value
@@ -48,26 +53,30 @@ class LoginViewModel(
         viewModelScope.launch {
             try {
                 authRepository.login(email.trim(), password)
-                uiState = LoginUiState.Success
+                entrarComPerfil()
             } catch (e: Exception) {
                 android.util.Log.e("LoginDebug", "Erro no login", e)
-                uiState = LoginUiState.Error(mensagemDeErro(e))
+                uiState = LoginUiState.Error(mensagemErroFirebase(e))
             }
         }
     }
 
-    private fun mensagemDeErro(e: Exception): String {
-        return when (e) {
-            is FirebaseAuthInvalidCredentialsException ->
-                "Email ou senha incorretos."
-            is FirebaseAuthInvalidUserException ->
-                "Não existe usuário cadastrado com esse email."
-            is FirebaseAuthUserCollisionException ->
-                "Já existe uma conta com esse email."
-            is IOException ->
-                "Sem conexão com a internet. Verifique sua rede e tente novamente."
-            else ->
-                "Não foi possível entrar. Tente novamente em instantes."
+    private suspend fun entrarComPerfil() {
+        uiState = try {
+            val usuario = authRepository.buscarUsuarioAtual()
+            if (usuario != null && usuario.perfil == Perfil.MOTORISTA && !usuario.ativo) {
+                authRepository.logout()
+                LoginUiState.Error("Sua conta de motorista foi desativada pelo controlador.")
+            } else if (usuario != null) {
+                LoginUiState.Success(usuario.perfil)
+            } else {
+                // Login existe no Auth, mas sem documento/perfil no Firestore.
+                authRepository.logout()
+                LoginUiState.Error("Conta sem perfil cadastrado. Fale com o administrador.")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LoginDebug", "Erro ao carregar perfil", e)
+            LoginUiState.Error(mensagemErroFirebase(e))
         }
     }
 }

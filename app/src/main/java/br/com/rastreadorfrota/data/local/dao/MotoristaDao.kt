@@ -1,7 +1,6 @@
 package br.com.rastreadorfrota.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -12,26 +11,29 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MotoristaDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun inserir(motorista: MotoristaEntity): Long
+    suspend fun salvar(motorista: MotoristaEntity)
 
     @Update
     suspend fun atualizar(motorista: MotoristaEntity)
 
-    @Delete
-    suspend fun deletar(motorista: MotoristaEntity)
-
-    @Query("SELECT * FROM motoristas WHERE deletedLocally = 0 ORDER BY nome ASC")
+    @Query("SELECT * FROM motoristas ORDER BY ativo DESC, nome ASC")
     fun observarTodos(): Flow<List<MotoristaEntity>>
 
-    @Query("SELECT * FROM motoristas WHERE id = :id")
-    suspend fun buscarPorId(id: Long): MotoristaEntity?
+    @Query("SELECT * FROM motoristas WHERE uid = :uid")
+    suspend fun buscarPorUid(uid: String): MotoristaEntity?
 
     @Query("SELECT * FROM motoristas WHERE sincronizado = 0")
     suspend fun listarPendentes(): List<MotoristaEntity>
 
-    @Query("SELECT * FROM motoristas WHERE remoteId = :remoteId LIMIT 1")
-    suspend fun buscarPorRemoteId(remoteId: String): MotoristaEntity?
+    // Só marca como sincronizado se o valor ainda é o que foi enviado: se o
+    // controlador mudou de novo durante o envio, continua pendente.
+    @Query(
+        "UPDATE motoristas SET sincronizado = 1 " +
+            "WHERE uid = :uid AND veiculoId IS :veiculoId AND ativo = :ativo"
+    )
+    suspend fun marcarSincronizado(uid: String, veiculoId: Long?, ativo: Boolean)
 
-    @Query("DELETE FROM motoristas WHERE id = :id")
-    suspend fun excluirDefinitivo(id: Long)
+    // Contas de motorista que não existem mais na nuvem somem do cache.
+    @Query("DELETE FROM motoristas WHERE sincronizado = 1 AND uid NOT IN (:uidsNaNuvem)")
+    suspend fun removerAusentes(uidsNaNuvem: List<String>): Int
 }

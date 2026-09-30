@@ -3,6 +3,8 @@ package br.com.rastreadorfrota.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.rastreadorfrota.auth.AuthRepository
+import br.com.rastreadorfrota.auth.Perfil
 import br.com.rastreadorfrota.data.connectivity.ConnectivityObserver
 import br.com.rastreadorfrota.data.local.AppDatabase
 import br.com.rastreadorfrota.data.sync.FirestoreSyncManager
@@ -45,6 +47,10 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getInstance(application)
     private val syncManager = FirestoreSyncManager(db.veiculoDao(), db.motoristaDao())
     private val connectivityObserver = ConnectivityObserver(application)
+    private val authRepository = AuthRepository()
+
+    // Descoberto na primeira sincronização e reaproveitado nas seguintes.
+    private var perfil: Perfil? = null
 
     // Garante que só existe UMA sincronização em andamento por vez.
     private val syncMutex = Mutex()
@@ -96,7 +102,8 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             _status.value = SyncStatus.Syncing
             try {
                 val resultado = withTimeout(TIMEOUT_SYNC_MS) {
-                    syncManager.sincronizarTudo()
+                    val perfilAtual = perfil ?: authRepository.buscarUsuarioAtual()?.perfil.also { perfil = it }
+                    syncManager.sincronizarTudo(incluirMotoristas = perfilAtual == Perfil.CONTROLADOR)
                 }
                 _status.value = SyncStatus.Success(resultado.log)
             } catch (e: TimeoutCancellationException) {

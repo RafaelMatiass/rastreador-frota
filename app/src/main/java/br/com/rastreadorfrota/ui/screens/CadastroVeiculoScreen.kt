@@ -1,8 +1,6 @@
 package br.com.rastreadorfrota.ui.screens
 
 import android.graphics.BitmapFactory
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,15 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,14 +47,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.rastreadorfrota.data.local.entity.TipoVeiculo
+import br.com.rastreadorfrota.ui.components.BotoesFoto
+import br.com.rastreadorfrota.ui.components.FotoLocal
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 import br.com.rastreadorfrota.ui.theme.trakSyncPrimaryButtonColors
 import br.com.rastreadorfrota.ui.theme.trakSyncTextFieldColors
 import br.com.rastreadorfrota.ui.viewmodel.VeiculoViewModel
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,27 +69,13 @@ fun CadastroVeiculoScreen(
     var tipoSelecionado by remember { mutableStateOf(TipoVeiculo.CAMINHAO) }
     var capacidadeTexto by remember { mutableStateOf("") }
     var fotoLocalPath by remember { mutableStateOf<String?>(null) }
-    var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var expandedTipo by remember { mutableStateOf(false) }
     var erro by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     fun guardarFoto(uri: android.net.Uri) {
-        val directory = File(context.filesDir, "vehicle_photos").apply { mkdirs() }
-        val destination = File(directory, "vehicle_${System.currentTimeMillis()}.jpg")
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            destination.outputStream().use { output -> input.copyTo(output) }
-            fotoLocalPath = destination.absolutePath
-        }
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri -> uri?.let(::guardarFoto) }
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { captured ->
-        if (captured) cameraUri?.let(::guardarFoto)
+        val destino = FotoLocal.novoArquivoVeiculo(context)
+        if (FotoLocal.copiar(context, uri, destino)) fotoLocalPath = destino.absolutePath
     }
 
     Scaffold(
@@ -164,33 +144,7 @@ fun CadastroVeiculoScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            val imageFile = File(context.cacheDir, "images").apply { mkdirs() }
-                                .resolve("vehicle_capture.jpg")
-                            cameraUri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                imageFile
-                            )
-                            cameraUri?.let(cameraLauncher::launch)
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Filled.PhotoCamera, contentDescription = null)
-                        Spacer(modifier = Modifier.size(6.dp))
-                        Text("Câmera")
-                    }
-                    OutlinedButton(
-                        onClick = { galleryLauncher.launch("image/*") },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
-                        Spacer(modifier = Modifier.size(6.dp))
-                        Text("Galeria")
-                    }
-                }
+                BotoesFoto(onFotoEscolhida = ::guardarFoto)
             }
             item {
                 OutlinedTextField(

@@ -32,24 +32,16 @@ class MotoristaViewModel(application: Application) : AndroidViewModel(applicatio
         initialValue = emptyList()
     )
 
-    fun salvarMotorista(nome: String, cnh: String, telefone: String, email: String, veiculoId: Long?) {
+    fun associarVeiculo(motorista: MotoristaEntity, veiculoId: Long?) {
         viewModelScope.launch {
-            repository.salvar(
-                MotoristaEntity(
-                    nome = nome.trim(),
-                    cnh = cnh.trim(),
-                    telefone = telefone.trim(),
-                    email = email.trim(),
-                    veiculoId = veiculoId
-                )
-            )
+            repository.associarVeiculo(motorista, veiculoId)
             SyncTrigger.requestSync()
         }
     }
 
-    fun removerMotorista(motorista: MotoristaEntity) {
+    fun alterarAtivo(motorista: MotoristaEntity, ativo: Boolean) {
         viewModelScope.launch {
-            repository.remover(motorista)
+            repository.alterarAtivo(motorista, ativo)
             SyncTrigger.requestSync()
         }
     }

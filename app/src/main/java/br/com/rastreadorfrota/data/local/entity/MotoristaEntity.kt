@@ -5,6 +5,11 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * Cópia local (cache offline) dos usuários com perfil MOTORISTA.
+ * O registro "de verdade" é "usuarios/{uid}" no Firestore, criado pelo próprio
+ * motorista no "Cadastrar-se". Aqui o controlador só altera [veiculoId] e [ativo].
+ */
 @Entity(
     tableName = "motoristas",
     foreignKeys = [
@@ -18,16 +23,15 @@ import androidx.room.PrimaryKey
     indices = [Index("veiculoId")]
 )
 data class MotoristaEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val uid: String,
     val nome: String,
-    val cnh: String,
-    val telefone: String,
     val email: String,
+    val telefone: String,
+    val cnh: String,
+    val categoriaCnh: String,
+    val validadeCnh: String,
     val veiculoId: Long? = null,
     val ativo: Boolean = true,
-    val sincronizado: Boolean = false,
-    val remoteId: String? = null,
-    val updatedAt: Long = System.currentTimeMillis(),
-    val deletedLocally: Boolean = false
+    val sincronizado: Boolean = true // false = controlador alterou veículo/status e ainda não subiu
 )

@@ -1,0 +1,48 @@
+// Regras do Cloud Firestore do Rastreador de Frota.
+// Aplicar em: Console do Firebase > Firestore Database > Regras (colar e publicar).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() {
+      return request.auth != null;
+    }
+
+    function ehControlador() {
+      return logado() &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'CONTROLADOR';
+    }
+
+    function camposAlterados() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // "usuarios/{uid}" é o único registro de cada usuário (inclusive do motorista).
+    match /usuarios/{uid} {
+      // Cada um lê o próprio perfil; o controlador lê os motoristas.
+      allow read: if logado() &&
+        (request.auth.uid == uid || (ehControlador() && resource.data.perfil == 'MOTORISTA'));
+
+      // Cadastro: só o próprio usuário, sempre ativo e sem veículo associado.
+      allow create: if logado() && request.auth.uid == uid &&
+        request.resource.data.perfil in ['MOTORISTA', 'CONTROLADOR'] &&
+        request.resource.data.ativo == true &&
+        !('veiculoRemoteId' in request.resource.data);
+
+      // O usuário edita os próprios dados cadastrais; perfil, email, veículo e
+      // status não. O controlador altera SÓ veículo e status dos motoristas.
+      allow update: if logado() && (
+        (request.auth.uid == uid &&
+          !camposAlterados().hasAny(['perfil', 'email', 'ativo', 'veiculoRemoteId'])) ||
+        (ehControlador() && resource.data.perfil == 'MOTORISTA' &&
+          camposAlterados().hasOnly(['ativo', 'veiculoRemoteId']))
+      );
+
+      allow delete: if false;
+    }
+
+    match /veiculos/{id} {
+      allow read, write: if logado();
+    }
+  }
+}
