@@ -2,6 +2,8 @@ package br.com.rastreadorfrota.ui.screens
 
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -24,8 +26,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,8 +38,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -66,25 +72,34 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.rastreadorfrota.data.local.entity.TipoVeiculo
+import br.com.rastreadorfrota.rota.CENTRO_DISTRIBUICAO
+import br.com.rastreadorfrota.rota.PERMISSOES_LOCALIZACAO
+import br.com.rastreadorfrota.rota.temPermissaoLocalizacao
 import br.com.rastreadorfrota.simulacao.PontoTelemetria
 import br.com.rastreadorfrota.simulacao.StatusVeiculo
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
+import br.com.rastreadorfrota.ui.viewmodel.DestinoRota
+import br.com.rastreadorfrota.ui.viewmodel.EstadoRota
 import br.com.rastreadorfrota.ui.viewmodel.MapaViewModel
+import br.com.rastreadorfrota.ui.viewmodel.RotaViewModel
 import br.com.rastreadorfrota.ui.viewmodel.VeiculoNoMapa
 import java.io.File
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
-
-private val CENTRO_ARARAQUARA = GeoPoint(-21.7946, -48.1756)
+import org.osmdroid.views.overlay.Polyline
 
 /**
  * Mapa com a posição simulada dos veículos.
  * - Controlador: frota inteira, com filtro por status (parado / em trânsito).
  * - Motorista ([modoMotorista]): só o veículo associado a ele ([veiculoRemoteId]).
+ * - Os dois perfis traçam rota da localização atual até um veículo ou até um
+ *   ponto escolhido com toque longo no mapa (destino de entrega).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,9 +107,11 @@ fun MapaFrotaScreen(
     onBack: () -> Unit,
     modoMotorista: Boolean = false,
     veiculoRemoteId: String? = null,
-    viewModel: MapaViewModel = viewModel()
+    viewModel: MapaViewModel = viewModel(),
+    rotaViewModel: RotaViewModel = viewModel()
 ) {
     val frotaCompleta by viewModel.frota.collectAsState()
+    val estadoRota by rotaViewModel.estado.collectAsState()
     var filtro by rememberSaveable { mutableStateOf<StatusVeiculo?>(null) }
     var selecionadoId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -113,8 +130,56 @@ fun MapaFrotaScreen(
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
             controller.setZoom(13.0)
-            controller.setCenter(CENTRO_ARARAQUARA)
+            controller.setCenter(CENTRO_DISTRIBUICAO)
         }
+    }
+
+    // A rota precisa da localização: pede a permissão na primeira vez. Negada, a rota
+    // sai mesmo assim, a partir do centro de distribuição.
+    var destinoPendente by remember { mutableStateOf<DestinoRota?>(null) }
+    val pedirPermissao = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        destinoPendente?.let(rotaViewModel::tracar)
+        destinoPendente = null
+    }
+    val tracarRota by rememberUpdatedState<(DestinoRota) -> Unit>({ destino ->
+        if (temPermissaoLocalizacao(context)) {
+            rotaViewModel.tracar(destino)
+        } else {
+            destinoPendente = destino
+            pedirPermissao.launch(PERMISSOES_LOCALIZACAO)
+        }
+    })
+
+    // Overlays da rota, criados uma vez como os marcadores. Ficam abaixo dos veículos.
+    val corRota = MaterialTheme.colorScheme.primary.toArgb()
+    val corDestino = MaterialTheme.colorScheme.error.toArgb()
+    val iconeOrigem = remember(corRota) { iconeMarcador(mapView, corRota) }
+    val iconeDestino = remember(corDestino) { iconeMarcador(mapView, corDestino) }
+    val linhaRota = remember { Polyline(mapView).apply { outlinePaint.strokeWidth = 12f } }
+    val marcadorOrigem = remember {
+        Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = "Origem da rota" }
+    }
+    val marcadorDestino = remember {
+        Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) }
+    }
+    remember {
+        // Toque longo escolhe um destino de entrega. No índice 0 para não roubar o toque dos marcadores.
+        mapView.overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?) = false
+            override fun longPressHelper(p: GeoPoint?): Boolean {
+                p?.let { tracarRota(DestinoRota(it, "ponto escolhido no mapa")) }
+                return true
+            }
+        }))
+        mapView.overlays.addAll(listOf(linhaRota, marcadorOrigem, marcadorDestino))
+    }
+
+    // Enquadra a rota inteira quando chega uma nova.
+    LaunchedEffect(estadoRota.rota) {
+        val pontos = estadoRota.rota?.pontos ?: return@LaunchedEffect
+        mapView.post { mapView.zoomToBoundingBox(BoundingBox.fromGeoPoints(pontos).increaseByScale(1.3f), true) }
     }
     // Um marcador por veículo, criado uma vez: a cada passo só mudam posição, ícone e texto.
     val marcadores = remember { mutableMapOf<Long, Marker>() }
@@ -213,8 +278,23 @@ fun MapaFrotaScreen(
                         marker.icon = icones.getValue(t.status)
                         marker.title = item.veiculo.placa
                     }
-                    // Segue o veículo selecionado enquanto ele anda.
-                    selecionado?.telemetria?.let { map.controller.animateTo(GeoPoint(it.latitude, it.longitude)) }
+                    // Rota: linha por ruas, origem e destino. Se o destino é um veículo,
+                    // o próprio marcador do veículo já mostra onde ele está.
+                    linhaRota.outlinePaint.color = corRota
+                    linhaRota.setPoints(estadoRota.rota?.pontos.orEmpty())
+                    estadoRota.origem?.let { marcadorOrigem.position = it }
+                    marcadorOrigem.icon = iconeOrigem
+                    marcadorOrigem.isEnabled = estadoRota.origem != null
+                    estadoRota.destino?.let {
+                        marcadorDestino.position = it.ponto
+                        marcadorDestino.title = "Destino: ${it.descricao}"
+                    }
+                    marcadorDestino.icon = iconeDestino
+                    marcadorDestino.isEnabled = estadoRota.destino != null && estadoRota.destino?.veiculoId == null
+                    // Segue o veículo selecionado enquanto ele anda (com rota na tela, mantém a rota enquadrada).
+                    if (estadoRota.destino == null) {
+                        selecionado?.telemetria?.let { map.controller.animateTo(GeoPoint(it.latitude, it.longitude)) }
+                    }
                     map.invalidate()
                 }
             )
@@ -238,12 +318,35 @@ fun MapaFrotaScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val destino = estadoRota.destino
+                    if (destino != null) {
+                        item(key = "rota") {
+                            CardRota(
+                                estado = estadoRota,
+                                onRecalcular = {
+                                    // Destino veículo: usa a posição de agora, porque ele andou.
+                                    val veiculo = frotaVisivel.find { it.veiculo.id == destino.veiculoId }
+                                    tracarRota(veiculo?.let(::destinoDoVeiculo) ?: destino)
+                                },
+                                onLimpar = rotaViewModel::limpar
+                            )
+                        }
+                    } else {
+                        item(key = "dica") {
+                            Text(
+                                "Toque e segure no mapa para traçar uma rota até um destino de entrega.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TrakSyncTheme.colors.textSecondary
+                            )
+                        }
+                    }
                     if (selecionado != null) {
                         item(key = "painel") {
                             PainelTelemetria(
                                 item = selecionado,
                                 podeFechar = !modoMotorista,
-                                onFechar = { selecionadoId = null }
+                                onFechar = { selecionadoId = null },
+                                onTracarRota = { tracarRota(destinoDoVeiculo(selecionado)) }
                             )
                         }
                     }
@@ -262,6 +365,12 @@ fun MapaFrotaScreen(
         }
     }
 }
+
+private fun destinoDoVeiculo(item: VeiculoNoMapa) = DestinoRota(
+    ponto = GeoPoint(item.telemetria.latitude, item.telemetria.longitude),
+    descricao = "veículo ${item.veiculo.placa}",
+    veiculoId = item.veiculo.id
+)
 
 private fun iconeMarcador(map: MapView, cor: Int): Drawable? =
     ContextCompat.getDrawable(map.context, org.osmdroid.library.R.drawable.marker_default)
@@ -354,7 +463,12 @@ private fun CardVeiculo(item: VeiculoNoMapa, selecionado: Boolean, onClick: () -
 }
 
 @Composable
-private fun PainelTelemetria(item: VeiculoNoMapa, podeFechar: Boolean, onFechar: () -> Unit) {
+private fun PainelTelemetria(
+    item: VeiculoNoMapa,
+    podeFechar: Boolean,
+    onFechar: () -> Unit,
+    onTracarRota: () -> Unit
+) {
     val t = item.telemetria
     val v = item.veiculo
     Card(
@@ -406,6 +520,85 @@ private fun PainelTelemetria(item: VeiculoNoMapa, podeFechar: Boolean, onFechar:
                 color = TrakSyncTheme.colors.textSecondary,
                 modifier = Modifier.padding(top = 10.dp)
             )
+            OutlinedButton(
+                onClick = onTracarRota,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Icon(Icons.Default.Directions, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Traçar rota até este veículo", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardRota(estado: EstadoRota, onRecalcular: () -> Unit, onLimpar: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = TrakSyncTheme.colors.surface2),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Directions,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Rota até ${estado.destino?.descricao.orEmpty()}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        "Saindo de: ${estado.tipoOrigem?.label ?: "obtendo localização..."}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TrakSyncTheme.colors.textSecondary
+                    )
+                }
+                IconButton(onClick = onLimpar) {
+                    Icon(Icons.Default.Close, contentDescription = "Limpar rota")
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            when {
+                estado.calculando -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Calculando rota...", style = MaterialTheme.typography.bodySmall)
+                }
+                estado.rota != null -> Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    ItemTelemetria("Distância", estado.rota.distanciaTexto)
+                    ItemTelemetria("Tempo estimado", estado.rota.duracaoTexto)
+                }
+                estado.erro != null -> Text(
+                    estado.erro,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            estado.aviso?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TrakSyncTheme.colors.textSecondary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            if (!estado.calculando) {
+                TextButton(onClick = onRecalcular) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Recalcular")
+                }
+            }
         }
     }
 }

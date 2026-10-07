@@ -75,6 +75,7 @@ pocs/
 | Entrega 4 | Fotos locais | Demonstra captura e persistência no filesystem do dispositivo |
 | Entrega 5 | Mapa da frota (`e5-mapa/otavio`) | Mapa OpenStreetMap com osmdroid e marcador com posições simuladas |
 | Entrega 5 | Simulador de telemetria (`e5-mapa/rafael`) | Sequência pré-determinada de posições com telemetria, loop único com `StateFlow` e cor do marcador por status |
+| Entrega 6 | Geração de rotas (`e6-rotas/rafael`) | Localização atual (FusedLocationProvider), destino com toque longo e rota por ruas no OSRM desenhada como `Polyline` |
 
 </details>
 
@@ -83,6 +84,24 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
+<summary>🧭 <b>Entrega 6 / Semana 13 — Geração de rotas</b></summary>
+
+<br>
+
+- [x] Rota por ruas da localização atual até um veículo da frota (botão no painel do veículo)
+- [x] Rota até um destino de entrega escolhido com toque longo no mapa
+- [x] Serviço OSRM (OpenStreetMap), sem API key: linha da rota, distância e tempo estimado
+- [x] Localização atual pelo FusedLocationProvider, com permissão pedida em tempo de execução
+- [x] Sem permissão ou fora da região (emulador): a rota parte do centro de distribuição, com aviso
+- [x] Recalcular até a posição atual do veículo; erro amigável sem internet
+- [x] Disponível para controlador e motorista
+- [x] PoC `pocs/e6-rotas/rafael` (rotas com OSRM)
+
+Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega6.md`](docs/entrega6.md)
+
+</details>
+
+<details>
 <summary>🗺️ <b>Entrega 5 / Semana 11 — Veículos parados e em trânsito no mapa</b></summary>
 
 <br>
@@ -127,12 +146,6 @@ Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega5.md`](doc
 - [x] Caminho da foto persistido localmente no Room
 - [x] Remoção do arquivo ao remover o veículo
 
-**Mapa da frota — Semana 11**
-- [x] Mapa OpenStreetMap integrado com osM
-- [x] Marcadores dos veículos cadastrados
-- [x] Posições, velocidade e estado simulados para demonstração
-- [x] Atualização automática das posições a cada quatro segundos
-
 **PoC**
 - [x] Projeto isolado demonstrando Room com app de notas
 
@@ -143,7 +156,8 @@ Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega5.md`](doc
 
 <br>
 
-_A definir conforme cronograma da disciplina._
+- **Entrega 7 / Semana 15 (04/11):** endereço a partir das coordenadas (reverse geocoding)
+- **Entrega 8 / Semana 17 (18/11):** notificações de geofencing (entrada e saída de perímetro)
 
 </details>
 
