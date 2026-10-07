@@ -14,15 +14,22 @@ data class Rota(
     val distanciaMetros: Double,
     val duracaoSegundos: Double
 ) {
-    val distanciaTexto: String
-        get() = if (distanciaMetros < 1000) "${distanciaMetros.toInt()} m"
-        else "%.1f km".format(distanciaMetros / 1000)
+    val distanciaTexto: String get() = formatarDistancia(distanciaMetros)
+    val duracaoTexto: String get() = formatarDuracao(duracaoSegundos)
+}
 
-    val duracaoTexto: String
-        get() {
-            val minutos = (duracaoSegundos / 60).toInt().coerceAtLeast(1)
-            return if (minutos < 60) "$minutos min" else "${minutos / 60} h ${minutos % 60} min"
-        }
+/** "850 m" ou "2,9 km". */
+fun formatarDistancia(metros: Double): String =
+    if (metros < 1000) "${metros.toInt()} m" else "%.1f km".format(metros / 1000)
+
+/** "menos de 1 min", "6 min" ou "1 h 10 min". */
+fun formatarDuracao(segundos: Double): String {
+    val minutos = (segundos / 60).toInt()
+    return when {
+        minutos < 1 -> "menos de 1 min"
+        minutos < 60 -> "$minutos min"
+        else -> "${minutos / 60} h ${minutos % 60} min"
+    }
 }
 
 /**

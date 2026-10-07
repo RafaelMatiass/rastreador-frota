@@ -8,14 +8,17 @@ import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 import br.com.rastreadorfrota.data.repository.VeiculoRepository
 import br.com.rastreadorfrota.simulacao.PontoTelemetria
 import br.com.rastreadorfrota.simulacao.SimuladorFrota
+import br.com.rastreadorfrota.simulacao.SituacaoViagem
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
-data class VeiculoNoMapa(val veiculo: VeiculoEntity, val telemetria: PontoTelemetria)
+data class VeiculoNoMapa(val veiculo: VeiculoEntity, val viagem: SituacaoViagem) {
+    val telemetria: PontoTelemetria get() = viagem.telemetria
+}
 
-/** Junta os veículos do cache local (Room) com a posição/telemetria simulada. */
+/** Junta os veículos do cache local (Room) com a viagem simulada (posição, telemetria, destino). */
 class MapaViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = VeiculoRepository(
@@ -27,7 +30,7 @@ class MapaViewModel(application: Application) : AndroidViewModel(application) {
         combine(repository.veiculos, SimuladorFrota.passos) { veiculos, passo ->
             veiculos
                 .filter { it.ativo }
-                .map { VeiculoNoMapa(it, SimuladorFrota.telemetria(it.placa, passo)) }
+                .map { VeiculoNoMapa(it, SimuladorFrota.situacao(it.placa, passo)) }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

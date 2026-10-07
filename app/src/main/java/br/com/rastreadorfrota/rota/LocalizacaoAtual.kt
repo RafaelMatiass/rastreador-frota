@@ -12,9 +12,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 import org.osmdroid.util.GeoPoint
 
-/** Centro de distribuição da frota em Araraquara: origem da rota quando o GPS não serve. */
-val CENTRO_DISTRIBUICAO = GeoPoint(-21.7946, -48.1756)
-
 val PERMISSOES_LOCALIZACAO = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION

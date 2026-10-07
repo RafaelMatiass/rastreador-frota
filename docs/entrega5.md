@@ -86,4 +86,5 @@ Abrir o mapa como controlador em um emulador e como motorista em outro. O veícu
 
 ## 5. Limitações conhecidas
 - Os veículos andam em linha reta entre os pontos da rota e não seguem as ruas. É suficiente para a entrega; a rota por ruas é o tema da Entrega 6.
+  > **Atualização (Entrega 6):** as viagens passaram a seguir as ruas, com destino e trajeto visível no mapa. Ao selecionar um veículo, o mapa agora enquadra o veículo e o trajeto restante, em vez de seguir o veículo. Ver [`entrega6.md`](entrega6.md).
 - A foto no painel só aparece no aparelho em que ela foi tirada, porque o armazenamento é local por decisão da Entrega 4.

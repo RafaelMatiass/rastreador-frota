@@ -1,79 +1,105 @@
 package br.com.rastreadorfrota.simulacao
 
-/**
- * Monta uma sequência PRÉ-DETERMINADA de pontos a partir de trechos e paradas
- * (nada é aleatório: a mesma rota gera sempre a mesma viagem).
- * Andando: motor ligado e portas fechadas. Em cada parada a telemetria é informada.
- */
-private class Rota(lat: Double, lon: Double) {
-    private val pontos = mutableListOf<PontoTelemetria>()
-    private var atual = lat to lon
+import org.osmdroid.util.GeoPoint
 
-    /** Anda em linha reta até (lat, lon) em [passos] pontos, a [kmh]. */
-    fun trecho(lat: Double, lon: Double, passos: Int, kmh: Int) = apply {
-        val (lat0, lon0) = atual
-        for (i in 1..passos) {
-            val f = i.toDouble() / passos
-            pontos += PontoTelemetria(lat0 + (lat - lat0) * f, lon0 + (lon - lon0) * f, kmh, true, false)
-        }
-        atual = lat to lon
-    }
+/** Centro de distribuição (CD) da frota em Araraquara: início e fim de todas as viagens. */
+val CENTRO_DISTRIBUICAO = GeoPoint(-21.815086, -48.204879)
 
-    /** Semáforo/trânsito: parado com motor ligado e portas fechadas. */
-    fun semaforo(passos: Int) = parada(passos, motorLigado = true, portasAbertas = false)
-
-    /** Entrega: motor desligado e portas abertas. */
-    fun entrega(passos: Int) = parada(passos, motorLigado = false, portasAbertas = true)
-
-    private fun parada(passos: Int, motorLigado: Boolean, portasAbertas: Boolean) = apply {
-        val (lat, lon) = atual
-        repeat(passos) { pontos += PontoTelemetria(lat, lon, 0, motorLigado, portasAbertas) }
-    }
-
-    fun pontos(): List<PontoTelemetria> = pontos.toList()
+enum class EtapaViagem(val label: String) {
+    IDA("Indo para a entrega"),
+    ENTREGA("Entregando"),
+    VOLTA("Voltando ao CD"),
+    DESCARGA("Descarregando no CD")
 }
 
-/** Viagens circulares em Araraquara/SP: cada uma termina onde começou e se repete. */
-internal val rotasSimuladas: List<List<PontoTelemetria>> = listOf(
-    // Centro -> Jardim Primavera -> Centro
-    Rota(-21.7946, -48.1756)
-        .trecho(-21.8009, -48.1682, 4, 42)
-        .semaforo(2)
-        .trecho(-21.8072, -48.1604, 4, 36)
-        .entrega(4)
-        .trecho(-21.8010, -48.1700, 3, 45)
-        .trecho(-21.7946, -48.1756, 3, 40)
-        .semaforo(1)
-        .pontos(),
+/** Um passo da viagem: a telemetria e onde ele cai no trajeto da etapa (null nas paradas). */
+internal class PassoViagem(
+    val telemetria: PontoTelemetria,
+    val etapa: EtapaViagem,
+    val noTrajeto: PontoNoTrajeto?
+)
 
-    // Vila Xavier -> Selmi Dei -> Vila Xavier
-    Rota(-21.7780, -48.1850)
-        .trecho(-21.7700, -48.1760, 5, 38)
-        .entrega(3)
-        .trecho(-21.7760, -48.1650, 4, 45)
-        .semaforo(2)
-        .trecho(-21.7780, -48.1850, 6, 40)
-        .pontos(),
+/**
+ * Viagem pré-determinada: CD -> destino de entrega -> CD, sempre pelas ruas.
+ * [passos] é a sequência fixa que a simulação percorre em loop; [fimDaEtapa] guarda,
+ * para cada passo, o índice do último passo da mesma etapa (para calcular o tempo restante).
+ */
+class Viagem internal constructor(
+    val destinoNome: String,
+    internal val ida: List<GeoPoint>,
+    internal val volta: List<GeoPoint>,
+    internal val passos: List<PassoViagem>
+) {
+    val destino: GeoPoint get() = ida.last()
 
-    // Centro de distribuição (Rod. Washington Luís) -> Centro -> CD
-    Rota(-21.8150, -48.2050)
-        .trecho(-21.8050, -48.1950, 4, 60)
-        .trecho(-21.7950, -48.1850, 4, 48)
-        .semaforo(1)
-        .trecho(-21.7880, -48.1780, 3, 30)
-        .entrega(5)
-        .trecho(-21.8000, -48.1900, 4, 50)
-        .trecho(-21.8150, -48.2050, 4, 62)
-        .entrega(2) // descarga no CD
-        .pontos(),
+    internal val fimDaEtapa: IntArray = IntArray(passos.size).also { fim ->
+        for (i in passos.indices.reversed()) {
+            fim[i] = if (i < passos.lastIndex && passos[i + 1].etapa == passos[i].etapa) fim[i + 1] else i
+        }
+    }
 
-    // Vale do Sol -> Jardim Morumbi -> Vale do Sol
-    Rota(-21.7700, -48.1500)
-        .trecho(-21.7800, -48.1450, 4, 40)
-        .semaforo(2)
-        .trecho(-21.7900, -48.1500, 3, 35)
-        .entrega(3)
-        .trecho(-21.7820, -48.1580, 3, 42)
-        .trecho(-21.7700, -48.1500, 3, 38)
-        .pontos()
+    internal fun trajeto(etapa: EtapaViagem): List<GeoPoint> = when (etapa) {
+        EtapaViagem.IDA -> ida
+        EtapaViagem.VOLTA -> volta
+        else -> emptyList()
+    }
+}
+
+/**
+ * Simulação acelerada: a cada passo (3 s na tela) o veículo percorre o que andaria em
+ * 3 s × [ACELERACAO]. Assim uma ida leva poucos minutos na demonstração, e a telemetria
+ * continua mostrando a velocidade "real".
+ */
+internal const val ACELERACAO = 3
+private const val PASSOS_SEMAFORO = 2
+private const val PASSOS_ENTREGA = 20 // 1 min parado no cliente
+private const val PASSOS_DESCARGA = 10
+
+/** Monta a sequência de passos: andando (motor ligado, portas fechadas) ou parado com a telemetria da parada. */
+private class MontadorViagem {
+    val passos = mutableListOf<PassoViagem>()
+    private var ultimo: GeoPoint? = null
+
+    /** Percorre o trajeto pelas ruas a [kmh], com [semaforos] paradas rápidas espalhadas pelo caminho. */
+    fun percurso(trajeto: List<GeoPoint>, etapa: EtapaViagem, kmh: Int, semaforos: Int) = apply {
+        val metrosPorPasso = kmh / 3.6 * (SimuladorFrota.INTERVALO_MS / 1000.0) * ACELERACAO
+        val amostra = amostrar(trajeto, metrosPorPasso)
+        val ondeParar = (1..semaforos).map { it * amostra.size / (semaforos + 1) }.toSet()
+        amostra.forEachIndexed { i, p ->
+            if (i in ondeParar) {
+                repeat(PASSOS_SEMAFORO) { passos += PassoViagem(ponto(p.ponto, 0, motorLigado = true, portasAbertas = false), etapa, p) }
+            }
+            passos += PassoViagem(ponto(p.ponto, kmh, motorLigado = true, portasAbertas = false), etapa, p)
+        }
+        ultimo = trajeto.last()
+    }
+
+    fun parada(etapa: EtapaViagem, quantidade: Int, motorLigado: Boolean, portasAbertas: Boolean) = apply {
+        val aqui = ultimo!!
+        repeat(quantidade) { passos += PassoViagem(ponto(aqui, 0, motorLigado, portasAbertas), etapa, null) }
+    }
+
+    private fun ponto(p: GeoPoint, kmh: Int, motorLigado: Boolean, portasAbertas: Boolean) =
+        PontoTelemetria(p.latitude, p.longitude, kmh, motorLigado, portasAbertas)
+}
+
+/** [kmhIda] e [kmhVolta]: velocidade média que o OSRM estimou para cada trajeto. */
+private fun viagem(destinoNome: String, ida: String, kmhIda: Int, volta: String, kmhVolta: Int): Viagem {
+    val trajetoIda = PolylineCodec.decodificar(ida)
+    val trajetoVolta = PolylineCodec.decodificar(volta)
+    val passos = MontadorViagem()
+        .percurso(trajetoIda, EtapaViagem.IDA, kmhIda, semaforos = 2)
+        .parada(EtapaViagem.ENTREGA, PASSOS_ENTREGA, motorLigado = false, portasAbertas = true)
+        .percurso(trajetoVolta, EtapaViagem.VOLTA, kmhVolta, semaforos = 1)
+        .parada(EtapaViagem.DESCARGA, PASSOS_DESCARGA, motorLigado = false, portasAbertas = true)
+        .passos
+    return Viagem(destinoNome, trajetoIda, trajetoVolta, passos)
+}
+
+/** As 4 viagens da frota (trajetos em `TrajetosRuas.kt`). Nada é aleatório: geram sempre os mesmos passos. */
+internal val viagensSimuladas: List<Viagem> = listOf(
+    viagem("Rua Papa João Paulo I", TRAJETO_IDA_1, 56, TRAJETO_VOLTA_1, 48),
+    viagem("Avenida Queiroz Filho", TRAJETO_IDA_2, 47, TRAJETO_VOLTA_2, 38),
+    viagem("Avenida Barroso", TRAJETO_IDA_3, 37, TRAJETO_VOLTA_3, 36),
+    viagem("Acesso Rodoviário Abdo Najn", TRAJETO_IDA_4, 65, TRAJETO_VOLTA_4, 37)
 )

@@ -4,7 +4,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import org.osmdroid.util.GeoPoint
 import kotlin.math.abs
+
+/** Onde o veículo está na viagem dele, para o mapa mostrar destino, trajeto e tempo restante. */
+data class SituacaoViagem(
+    val telemetria: PontoTelemetria,
+    val etapa: EtapaViagem,
+    val destinoNome: String,
+    val destino: GeoPoint,
+    /** Do ponto atual até o fim da etapa (vazio nas paradas): a linha que "encolhe" no mapa. */
+    val trajetoRestante: List<GeoPoint>,
+    val metrosRestantes: Double,
+    /** Até o fim da etapa atual, em tempo de tela (passos × intervalo). */
+    val segundosRestantes: Long
+)
 
 /**
  * Simula a posição e a telemetria da frota dentro do próprio app.
@@ -15,7 +29,7 @@ import kotlin.math.abs
  *  - dois aparelhos (controlador e motorista) mostram o mesmo veículo no mesmo lugar,
  *    sem trocar nenhuma mensagem, porque a conta é a mesma dos dois lados.
  *
- * Cada veículo recebe uma rota e um deslocamento fixos a partir da placa
+ * Cada veículo recebe uma viagem e um deslocamento fixos a partir da placa
  * (String.hashCode é estável entre execuções/aparelhos), pra não ficarem sobrepostos.
  *
  * A telemetria fica só em memória: o manual pede a simulação "no próprio aplicativo",
@@ -34,10 +48,24 @@ object SimuladorFrota {
         }
     }.distinctUntilChanged()
 
-    fun telemetria(placa: String, passo: Long): PontoTelemetria {
+    fun situacao(placa: String, passo: Long): SituacaoViagem {
         val semente = abs(placa.uppercase().hashCode().toLong())
-        val rota = rotasSimuladas[(semente % rotasSimuladas.size).toInt()]
-        val deslocamento = (semente / rotasSimuladas.size) % rota.size
-        return rota[((passo + deslocamento) % rota.size).toInt()]
+        val viagem = viagensSimuladas[(semente % viagensSimuladas.size).toInt()]
+        val total = viagem.passos.size
+        val deslocamento = (semente / viagensSimuladas.size) % total
+        val indice = ((passo + deslocamento) % total).toInt()
+        val atual = viagem.passos[indice]
+        val restante = atual.noTrajeto?.let { trajetoRestante(viagem.trajeto(atual.etapa), it) }.orEmpty()
+        return SituacaoViagem(
+            telemetria = atual.telemetria,
+            etapa = atual.etapa,
+            destinoNome = viagem.destinoNome,
+            destino = viagem.destino,
+            trajetoRestante = restante,
+            metrosRestantes = comprimentoMetros(restante),
+            segundosRestantes = (viagem.fimDaEtapa[indice] - indice + 1) * INTERVALO_MS / 1000
+        )
     }
+
+    fun telemetria(placa: String, passo: Long): PontoTelemetria = situacao(placa, passo).telemetria
 }

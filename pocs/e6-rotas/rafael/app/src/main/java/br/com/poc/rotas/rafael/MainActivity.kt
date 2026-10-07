@@ -82,8 +82,22 @@ fun TelaRotas(vm: RotaViewModel = viewModel()) {
             outlinePaint.strokeWidth = 12f
         }
     }
+    // Trecho que o veículo simulado ainda vai percorrer: desenhado por cima da rota e encolhendo.
+    val linhaRestante = remember {
+        Polyline(mapView).apply {
+            outlinePaint.color = Color.rgb(46, 158, 91)
+            outlinePaint.strokeWidth = 14f
+        }
+    }
     val marcadorOrigem = remember { Marker(mapView).apply { title = "Origem" } }
     val marcadorDestino = remember { Marker(mapView).apply { title = "Destino" } }
+    val marcadorVeiculo = remember {
+        Marker(mapView).apply {
+            title = "Veículo"
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            icon = context.getDrawable(android.R.drawable.ic_menu_mylocation)
+        }
+    }
     remember {
         // Toque longo no mapa escolhe o destino. Fica no índice 0 para não roubar o toque dos marcadores.
         val eventos = MapEventsOverlay(object : MapEventsReceiver {
@@ -94,7 +108,7 @@ fun TelaRotas(vm: RotaViewModel = viewModel()) {
             }
         })
         mapView.overlays.add(0, eventos)
-        mapView.overlays.addAll(listOf(linhaRota, marcadorOrigem, marcadorDestino))
+        mapView.overlays.addAll(listOf(linhaRota, linhaRestante, marcadorOrigem, marcadorDestino, marcadorVeiculo))
     }
 
     DisposableEffect(Unit) {
@@ -121,6 +135,9 @@ fun TelaRotas(vm: RotaViewModel = viewModel()) {
                 marcadorOrigem.isEnabled = estado.origem != null
                 estado.destino?.let { marcadorDestino.position = it }
                 marcadorDestino.isEnabled = estado.destino != null
+                linhaRestante.setPoints(estado.trajetoRestante)
+                estado.veiculo?.let { marcadorVeiculo.position = it }
+                marcadorVeiculo.isEnabled = estado.veiculo != null
                 map.invalidate()
             }
         )
@@ -144,6 +161,13 @@ fun TelaRotas(vm: RotaViewModel = viewModel()) {
                 },
                 style = MaterialTheme.typography.titleMedium
             )
+            if (estado.veiculo != null) {
+                Text(
+                    if (estado.faltamSegundos == 0L) "Veículo chegou ao destino."
+                    else "Veículo: faltam %.0f m  •  %d s".format(estado.faltamMetros, estado.faltamSegundos),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
             estado.mensagem?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
@@ -152,6 +176,11 @@ fun TelaRotas(vm: RotaViewModel = viewModel()) {
                 OutlinedButton(onClick = vm::usarCentroDistribuicao) { Text("Centro dist.") }
                 OutlinedButton(onClick = vm::limpar) { Text("Limpar") }
             }
+            Button(
+                onClick = vm::simularViagem,
+                enabled = estado.rota != null,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            ) { Text("Simular viagem") }
         }
     }
 }

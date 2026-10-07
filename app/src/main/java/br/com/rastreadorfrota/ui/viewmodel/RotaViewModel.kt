@@ -3,10 +3,10 @@ package br.com.rastreadorfrota.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import br.com.rastreadorfrota.rota.CENTRO_DISTRIBUICAO
 import br.com.rastreadorfrota.rota.Rota
 import br.com.rastreadorfrota.rota.RotaService
 import br.com.rastreadorfrota.rota.localizacaoAtual
+import br.com.rastreadorfrota.simulacao.CENTRO_DISTRIBUICAO
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow

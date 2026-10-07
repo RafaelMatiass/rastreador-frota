@@ -75,7 +75,7 @@ pocs/
 | Entrega 4 | Fotos locais | Demonstra captura e persistência no filesystem do dispositivo |
 | Entrega 5 | Mapa da frota (`e5-mapa/otavio`) | Mapa OpenStreetMap com osmdroid e marcador com posições simuladas |
 | Entrega 5 | Simulador de telemetria (`e5-mapa/rafael`) | Sequência pré-determinada de posições com telemetria, loop único com `StateFlow` e cor do marcador por status |
-| Entrega 6 | Geração de rotas (`e6-rotas/rafael`) | Localização atual (FusedLocationProvider), destino com toque longo e rota por ruas no OSRM desenhada como `Polyline` |
+| Entrega 6 | Geração de rotas (`e6-rotas/rafael`) | Localização atual (FusedLocationProvider), destino com toque longo, rota por ruas no OSRM desenhada como `Polyline` e veículo simulado percorrendo a rota |
 
 </details>
 
@@ -88,6 +88,9 @@ pocs/
 
 <br>
 
+- [x] Viagens simuladas **pelas ruas**: CD → entrega → CD, com trajetos fixos gerados uma vez no OSRM (sem rede na simulação)
+- [x] Linha do trajeto restante de cada veículo, que encolhe conforme ele chega; marcadores do CD e da entrega
+- [x] "Indo para Rua X · faltam 2,3 km · 4 min" na lista e no painel; motorista vê a rota do próprio veículo
 - [x] Rota por ruas da localização atual até um veículo da frota (botão no painel do veículo)
 - [x] Rota até um destino de entrega escolhido com toque longo no mapa
 - [x] Serviço OSRM (OpenStreetMap), sem API key: linha da rota, distância e tempo estimado

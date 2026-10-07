@@ -9,6 +9,7 @@ Provar, antes de integrar ao app, as três peças da "geração de rota da local
 1. **Localização atual** do aparelho com o `FusedLocationProviderClient` (Google Play Services), pedindo a permissão em tempo de execução.
 2. **Escolha do destino** com um toque longo no mapa (`MapEventsOverlay` do osmdroid).
 3. **Cálculo da rota por ruas** no **OSRM** (Open Source Routing Machine), que usa os dados do OpenStreetMap. O app recebe o desenho da rota, a distância e o tempo estimado e desenha uma `Polyline`.
+4. **Veículo seguindo a rota** (botão **Simular viagem**, `Trajeto.kt`): `amostrar()` anda pelos segmentos da linha e marca um ponto a cada 60 m, sempre sobre a rua. O trajeto restante (ponto atual + vértices seguintes) é redesenhado e encolhe, com "faltam X m • Y s".
 
 ## Pesquisa
 
@@ -50,9 +51,11 @@ Resposta (resumida):
    - Toque e segure em qualquer rua: aparece o destino, a linha azul seguindo as ruas e o texto "X km • Y min".
    - Outro toque longo troca o destino e recalcula.
    - **Limpar** apaga a rota. Sem internet, aparece a mensagem de erro em vez de travar.
+   - Com uma rota na tela, **Simular viagem** faz o veículo percorrer as ruas (1 passo por segundo). A linha verde encolhe até o destino.
 
 ## O que foi levado para o app
 
 - `OsrmClient` virou `app/.../rota/RotaService.kt`.
 - A obtenção da localização virou `app/.../rota/LocalizacaoAtual.kt`.
 - O estado da rota (origem, destino, cálculo, erro) virou `RotaViewModel` no app, e o mapa da frota ganhou a `Polyline`, o toque longo e o botão "Traçar rota até este veículo".
+- `amostrar()` e `trajetoRestante()` foram para `app/.../simulacao/Trajeto.kt`. Com eles, as viagens simuladas da frota passaram a seguir as ruas e a mostrar o trajeto que falta.

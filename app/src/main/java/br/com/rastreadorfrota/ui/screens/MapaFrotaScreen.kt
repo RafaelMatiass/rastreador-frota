@@ -64,18 +64,24 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import br.com.rastreadorfrota.data.local.entity.TipoVeiculo
-import br.com.rastreadorfrota.rota.CENTRO_DISTRIBUICAO
 import br.com.rastreadorfrota.rota.PERMISSOES_LOCALIZACAO
+import br.com.rastreadorfrota.rota.formatarDistancia
+import br.com.rastreadorfrota.rota.formatarDuracao
 import br.com.rastreadorfrota.rota.temPermissaoLocalizacao
+import br.com.rastreadorfrota.simulacao.CENTRO_DISTRIBUICAO
+import br.com.rastreadorfrota.simulacao.EtapaViagem
 import br.com.rastreadorfrota.simulacao.PontoTelemetria
+import br.com.rastreadorfrota.simulacao.SituacaoViagem
 import br.com.rastreadorfrota.simulacao.StatusVeiculo
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 import br.com.rastreadorfrota.ui.viewmodel.DestinoRota
@@ -152,16 +158,32 @@ fun MapaFrotaScreen(
         }
     })
 
-    // Overlays da rota, criados uma vez como os marcadores. Ficam abaixo dos veículos.
-    val corRota = MaterialTheme.colorScheme.primary.toArgb()
-    val corDestino = MaterialTheme.colorScheme.error.toArgb()
-    val iconeOrigem = remember(corRota) { iconeMarcador(mapView, corRota) }
-    val iconeDestino = remember(corDestino) { iconeMarcador(mapView, corDestino) }
+    // Cores: viagem dos veículos (primary), destino de entrega da viagem (error),
+    // rota sob demanda do usuário (tertiary) e o CD (neutro).
+    val corViagem = MaterialTheme.colorScheme.primary.toArgb()
+    val corEntrega = MaterialTheme.colorScheme.error.toArgb()
+    val corRota = MaterialTheme.colorScheme.tertiary.toArgb()
+    val corCd = TrakSyncTheme.colors.textSecondary.toArgb()
+    val iconeRota = remember(corRota) { iconeMarcador(mapView, corRota) }
+    val iconeEntrega = remember(corEntrega) { iconeMarcador(mapView, corEntrega) }
+    val iconeCd = remember(corCd) { iconeMarcador(mapView, corCd) }
+
+    // Overlays fixos, criados uma vez como os marcadores. Ficam abaixo dos veículos.
     val linhaRota = remember { Polyline(mapView).apply { outlinePaint.strokeWidth = 12f } }
     val marcadorOrigem = remember {
         Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM); title = "Origem da rota" }
     }
     val marcadorDestino = remember {
+        Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) }
+    }
+    val marcadorCd = remember {
+        Marker(mapView).apply {
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            position = CENTRO_DISTRIBUICAO
+            title = "Centro de distribuição"
+        }
+    }
+    val marcadorEntrega = remember {
         Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) }
     }
     remember {
@@ -173,13 +195,15 @@ fun MapaFrotaScreen(
                 return true
             }
         }))
-        mapView.overlays.addAll(listOf(linhaRota, marcadorOrigem, marcadorDestino))
+        mapView.overlays.addAll(listOf(linhaRota, marcadorCd, marcadorEntrega, marcadorOrigem, marcadorDestino))
     }
+    // Uma linha por veículo com o que falta da viagem: criada uma vez e só atualizada.
+    val linhasViagem = remember { mutableMapOf<Long, Polyline>() }
 
-    // Enquadra a rota inteira quando chega uma nova.
+    // Enquadra a rota sob demanda inteira quando chega uma nova.
     LaunchedEffect(estadoRota.rota) {
         val pontos = estadoRota.rota?.pontos ?: return@LaunchedEffect
-        mapView.post { mapView.zoomToBoundingBox(BoundingBox.fromGeoPoints(pontos).increaseByScale(1.3f), true) }
+        enquadrar(mapView, pontos)
     }
     // Um marcador por veículo, criado uma vez: a cada passo só mudam posição, ícone e texto.
     val marcadores = remember { mutableMapOf<Long, Marker>() }
@@ -214,9 +238,17 @@ fun MapaFrotaScreen(
     var enquadrou by remember { mutableStateOf(false) }
     LaunchedEffect(frotaVisivel?.isNotEmpty()) {
         if (!enquadrou && !frotaVisivel.isNullOrEmpty()) {
-            enquadrar(mapView, frotaVisivel.map { it.telemetria })
+            enquadrar(mapView, frotaVisivel.map { it.telemetria.geo })
             enquadrou = true
         }
+    }
+
+    // Ao selecionar um veículo, e a cada etapa nova da viagem, enquadra o veículo e o que
+    // falta do trajeto. Com uma rota sob demanda na tela, quem manda no enquadramento é ela.
+    val viagemSelecionada = selecionado?.viagem
+    LaunchedEffect(selecionado?.veiculo?.id, viagemSelecionada?.etapa, estadoRota.destino == null) {
+        if (viagemSelecionada == null || estadoRota.destino != null) return@LaunchedEffect
+        enquadrar(mapView, listOf(viagemSelecionada.telemetria.geo) + viagemSelecionada.trajetoRestante)
     }
 
     Scaffold(
@@ -233,7 +265,7 @@ fun MapaFrotaScreen(
                     if (!frotaVisivel.isNullOrEmpty()) {
                         IconButton(onClick = {
                             selecionadoId = null
-                            enquadrar(mapView, frotaVisivel.map { it.telemetria })
+                            enquadrar(mapView, frotaVisivel.map { it.telemetria.geo })
                         }) {
                             Icon(Icons.Default.CenterFocusStrong, contentDescription = "Centralizar na frota")
                         }
@@ -265,6 +297,28 @@ fun MapaFrotaScreen(
                     marcadores.keys.filter { it !in visiveis }.forEach { id ->
                         map.overlays.remove(marcadores.remove(id))
                     }
+                    linhasViagem.keys.filter { it !in visiveis }.forEach { id ->
+                        map.overlays.remove(linhasViagem.remove(id))
+                    }
+                    // Trajeto restante de cada viagem: fino e translúcido; o do selecionado, forte.
+                    // Com uma rota sob demanda na tela, só o do selecionado continua visível.
+                    visiveis.forEach { (id, item) ->
+                        val linha = linhasViagem.getOrPut(id) {
+                            Polyline(map).also { map.overlays.add(1, it) } // logo acima do toque longo, abaixo de tudo
+                        }
+                        val destaque = id == selecionado?.veiculo?.id
+                        linha.setPoints(item.viagem.trajetoRestante)
+                        linha.outlinePaint.color = if (destaque) corViagem else ColorUtils.setAlphaComponent(corViagem, 110)
+                        linha.outlinePaint.strokeWidth = if (destaque) 12f else 6f
+                        linha.isEnabled = item.viagem.trajetoRestante.size > 1 && (destaque || estadoRota.destino == null)
+                    }
+                    marcadorCd.icon = iconeCd
+                    selecionado?.viagem?.let {
+                        marcadorEntrega.position = it.destino
+                        marcadorEntrega.title = "Entrega: ${it.destinoNome}"
+                    }
+                    marcadorEntrega.icon = iconeEntrega
+                    marcadorEntrega.isEnabled = selecionado != null
                     visiveis.forEach { (id, item) ->
                         val marker = marcadores.getOrPut(id) {
                             Marker(map).also {
@@ -283,18 +337,14 @@ fun MapaFrotaScreen(
                     linhaRota.outlinePaint.color = corRota
                     linhaRota.setPoints(estadoRota.rota?.pontos.orEmpty())
                     estadoRota.origem?.let { marcadorOrigem.position = it }
-                    marcadorOrigem.icon = iconeOrigem
+                    marcadorOrigem.icon = iconeRota
                     marcadorOrigem.isEnabled = estadoRota.origem != null
                     estadoRota.destino?.let {
                         marcadorDestino.position = it.ponto
                         marcadorDestino.title = "Destino: ${it.descricao}"
                     }
-                    marcadorDestino.icon = iconeDestino
+                    marcadorDestino.icon = iconeRota
                     marcadorDestino.isEnabled = estadoRota.destino != null && estadoRota.destino?.veiculoId == null
-                    // Segue o veículo selecionado enquanto ele anda (com rota na tela, mantém a rota enquadrada).
-                    if (estadoRota.destino == null) {
-                        selecionado?.telemetria?.let { map.controller.animateTo(GeoPoint(it.latitude, it.longitude)) }
-                    }
                     map.invalidate()
                 }
             )
@@ -377,8 +427,21 @@ private fun iconeMarcador(map: MapView, cor: Int): Drawable? =
         ?.mutate()
         ?.apply { setTint(cor) }
 
-private fun enquadrar(map: MapView, pontos: List<PontoTelemetria>) {
-    val geo = pontos.map { GeoPoint(it.latitude, it.longitude) }
+private val PontoTelemetria.geo: GeoPoint get() = GeoPoint(latitude, longitude)
+
+/** "Indo para Rua X · faltam 2,3 km · 4 min", "Entregando em Rua X · sai em 1 min"... */
+private fun textoViagem(v: SituacaoViagem, curto: Boolean = false): String {
+    val tempo = formatarDuracao(v.segundosRestantes.toDouble())
+    val distancia = if (curto) "" else " · faltam ${formatarDistancia(v.metrosRestantes)}"
+    return when (v.etapa) {
+        EtapaViagem.IDA -> "Indo para ${v.destinoNome}$distancia · $tempo"
+        EtapaViagem.ENTREGA -> "Entregando em ${v.destinoNome} · sai em $tempo"
+        EtapaViagem.VOLTA -> "Voltando ao CD$distancia · $tempo"
+        EtapaViagem.DESCARGA -> "Descarregando no CD · sai em $tempo"
+    }
+}
+
+private fun enquadrar(map: MapView, geo: List<GeoPoint>) {
     // zoomToBoundingBox só funciona depois que o mapa tem tamanho.
     map.post {
         if (geo.size == 1) {
@@ -449,6 +512,13 @@ private fun CardVeiculo(item: VeiculoNoMapa, selecionado: Boolean, onClick: () -
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.veiculo.placa, style = MaterialTheme.typography.titleSmall)
                 Text(item.veiculo.modelo, style = MaterialTheme.typography.bodySmall, color = TrakSyncTheme.colors.textSecondary)
+                Text(
+                    textoViagem(item.viagem, curto = true),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TrakSyncTheme.colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -514,6 +584,12 @@ private fun PainelTelemetria(
                 ItemTelemetria("Motor", if (t.motorLigado) "Ligado" else "Desligado")
                 ItemTelemetria("Portas", if (t.portasAbertas) "Abertas" else "Fechadas")
             }
+            Text(
+                textoViagem(item.viagem),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(top = 12.dp)
+            )
             Text(
                 "Telemetria simulada · %.5f, %.5f".format(t.latitude, t.longitude),
                 style = MaterialTheme.typography.labelSmall,
