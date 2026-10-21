@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,6 +9,11 @@ plugins {
     // ajuste a versão do KSP para casar com a versão do Kotlin do seu projeto
     // (regra: <versão-kotlin>-<versão-ksp>, ex: kotlin 2.0.21 -> ksp 2.0.21-1.0.28
 }
+
+// Chave da Reverse Geocoding API da Geoapify (Entrega 7): fica em local.properties, fora do Git.
+val chaveGeoapify: String = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}.getProperty("GEOAPIFY_API_KEY", "")
 
 android {
     namespace = "br.com.rastreadorfrota"
@@ -18,6 +25,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-entrega1"
+        buildConfigField("String", "GEOAPIFY_API_KEY", "\"$chaveGeoapify\"")
     }
 
     buildTypes {
@@ -37,6 +45,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -76,6 +76,7 @@ pocs/
 | Entrega 5 | Mapa da frota (`e5-mapa/otavio`) | Mapa OpenStreetMap com osmdroid e marcador com posições simuladas |
 | Entrega 5 | Simulador de telemetria (`e5-mapa/rafael`) | Sequência pré-determinada de posições com telemetria, loop único com `StateFlow` e cor do marcador por status |
 | Entrega 6 | Geração de rotas (`e6-rotas/rafael`) | Localização atual (FusedLocationProvider), destino com toque longo, rota por ruas no OSRM desenhada como `Polyline` e veículo simulado percorrendo a rota |
+| Entrega 7 | Reverse geocoding (`e7-geocoding/rafael`) | Toque no mapa → endereço pela API da Geoapify, com cache por coordenada e contador de requisições |
 
 </details>
 
@@ -84,6 +85,23 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
+<summary>📍 <b>Entrega 7 / Semana 15 — Endereços a partir das coordenadas</b></summary>
+
+<br>
+
+- [x] Reverse Geocoding API da Geoapify (citada no manual), chave em `local.properties` (fora do Git)
+- [x] Endereço atual do veículo selecionado no painel (controlador e motorista)
+- [x] Endereço completo da entrega, com CEP
+- [x] Endereços de origem e destino no card da rota sob demanda
+- [x] Controle de cota: cache por coordenada, só o veículo selecionado, nova consulta só após 100 m e 15 s
+- [x] Sem internet: mantém o último endereço com aviso, sem travar
+- [x] PoC `pocs/e7-geocoding/rafael` (reverse geocoding com cache)
+
+Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega7.md`](docs/entrega7.md)
+
+</details>
+
+<details>
 <summary>🧭 <b>Entrega 6 / Semana 13 — Geração de rotas</b></summary>
 
 <br>
@@ -159,7 +177,6 @@ Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega5.md`](doc
 
 <br>
 
-- **Entrega 7 / Semana 15 (04/11):** endereço a partir das coordenadas (reverse geocoding)
 - **Entrega 8 / Semana 17 (18/11):** notificações de geofencing (entrada e saída de perímetro)
 
 </details>
@@ -241,7 +258,8 @@ chore: configura AppDatabase como singleton
 1. Clone o repositório
 2. Abra o projeto no **Android Studio**
 3. Configure um **AVD com Google Play Store** (necessário para o Firebase Auth) ou use um dispositivo físico
-4. Rode o projeto (`Run ▶️`)
+4. Crie uma chave gratuita em [myprojects.geoapify.com](https://myprojects.geoapify.com) e adicione ao `local.properties` da raiz: `GEOAPIFY_API_KEY=sua_chave` (endereços, Entrega 7)
+5. Rode o projeto (`Run ▶️`)
 
 ---
 

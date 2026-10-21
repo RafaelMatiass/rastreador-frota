@@ -5,6 +5,8 @@ import android.graphics.drawable.Drawable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -27,7 +29,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -83,8 +84,13 @@ import br.com.rastreadorfrota.simulacao.EtapaViagem
 import br.com.rastreadorfrota.simulacao.PontoTelemetria
 import br.com.rastreadorfrota.simulacao.SituacaoViagem
 import br.com.rastreadorfrota.simulacao.StatusVeiculo
+import br.com.rastreadorfrota.ui.components.icone
+import br.com.rastreadorfrota.ui.components.rememberIconesVeiculo
+import br.com.rastreadorfrota.ui.components.tipoVeiculo
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 import br.com.rastreadorfrota.ui.viewmodel.DestinoRota
+import br.com.rastreadorfrota.ui.viewmodel.EnderecoViewModel
+import br.com.rastreadorfrota.ui.viewmodel.EnderecosVeiculo
 import br.com.rastreadorfrota.ui.viewmodel.EstadoRota
 import br.com.rastreadorfrota.ui.viewmodel.MapaViewModel
 import br.com.rastreadorfrota.ui.viewmodel.RotaViewModel
@@ -114,10 +120,14 @@ fun MapaFrotaScreen(
     modoMotorista: Boolean = false,
     veiculoRemoteId: String? = null,
     viewModel: MapaViewModel = viewModel(),
-    rotaViewModel: RotaViewModel = viewModel()
+    rotaViewModel: RotaViewModel = viewModel(),
+    enderecoViewModel: EnderecoViewModel = viewModel()
 ) {
+    // Controlador: só viaja veículo com motorista ativo. Motorista: o veículo dele sempre viaja.
+    LaunchedEffect(modoMotorista) { viewModel.definirModo(modoMotorista) }
     val frotaCompleta by viewModel.frota.collectAsState()
     val estadoRota by rotaViewModel.estado.collectAsState()
+    val enderecos by enderecoViewModel.estado.collectAsState()
     var filtro by rememberSaveable { mutableStateOf<StatusVeiculo?>(null) }
     var selecionadoId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -125,7 +135,7 @@ fun MapaFrotaScreen(
         if (modoMotorista) lista.filter { veiculoRemoteId != null && it.veiculo.remoteId == veiculoRemoteId }
         else lista
     }
-    val frotaFiltrada = frotaVisivel.orEmpty().filter { filtro == null || it.telemetria.status == filtro }
+    val frotaFiltrada = frotaVisivel.orEmpty().filter { filtro == null || it.status == filtro }
     val selecionado = frotaVisivel?.find { it.veiculo.id == selecionadoId }
         ?: frotaVisivel?.singleOrNull()?.takeIf { modoMotorista }
 
@@ -207,14 +217,8 @@ fun MapaFrotaScreen(
     }
     // Um marcador por veículo, criado uma vez: a cada passo só mudam posição, ícone e texto.
     val marcadores = remember { mutableMapOf<Long, Marker>() }
-    val corTransito = TrakSyncTheme.colors.success.toArgb()
-    val corParado = TrakSyncTheme.colors.warning.toArgb()
-    val icones = remember(corTransito, corParado) {
-        mapOf(
-            StatusVeiculo.EM_TRANSITO to iconeMarcador(mapView, corTransito),
-            StatusVeiculo.PARADO to iconeMarcador(mapView, corParado)
-        )
-    }
+    // Ícone por tipo de veículo (caminhão, furgão, van, outro) na cor do status.
+    val icones = rememberIconesVeiculo(StatusVeiculo.entries.associateWith { corDoStatus(it) })
     val aoTocarMarcador by rememberUpdatedState<(Long) -> Unit>({ selecionadoId = it })
 
     // O MapView precisa acompanhar o ciclo de vida da tela (tiles, threads, cache).
@@ -246,6 +250,14 @@ fun MapaFrotaScreen(
     // Ao selecionar um veículo, e a cada etapa nova da viagem, enquadra o veículo e o que
     // falta do trajeto. Com uma rota sob demanda na tela, quem manda no enquadramento é ela.
     val viagemSelecionada = selecionado?.viagem
+    // Endereço do veículo selecionado (Entrega 7): o ViewModel decide quando consultar a API de novo.
+    LaunchedEffect(selecionado?.veiculo?.id, viagemSelecionada?.telemetria) {
+        enderecoViewModel.acompanhar(
+            veiculoId = selecionado?.veiculo?.id,
+            posicao = viagemSelecionada?.telemetria?.geo,
+            destinoEntrega = selecionado?.takeIf { it.emOperacao }?.viagem?.destino
+        )
+    }
     LaunchedEffect(selecionado?.veiculo?.id, viagemSelecionada?.etapa, estadoRota.destino == null) {
         if (viagemSelecionada == null || estadoRota.destino != null) return@LaunchedEffect
         enquadrar(mapView, listOf(viagemSelecionada.telemetria.geo) + viagemSelecionada.trajetoRestante)
@@ -318,18 +330,18 @@ fun MapaFrotaScreen(
                         marcadorEntrega.title = "Entrega: ${it.destinoNome}"
                     }
                     marcadorEntrega.icon = iconeEntrega
-                    marcadorEntrega.isEnabled = selecionado != null
+                    marcadorEntrega.isEnabled = selecionado?.emOperacao == true
                     visiveis.forEach { (id, item) ->
                         val marker = marcadores.getOrPut(id) {
                             Marker(map).also {
-                                it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER) // ícone redondo: centro na posição
                                 it.setOnMarkerClickListener { _, _ -> aoTocarMarcador(id); true }
                                 map.overlays.add(it)
                             }
                         }
                         val t = item.telemetria
                         marker.position = GeoPoint(t.latitude, t.longitude)
-                        marker.icon = icones.getValue(t.status)
+                        marker.icon = icones.getValue(tipoVeiculo(item.veiculo.tipo) to item.status)
                         marker.title = item.veiculo.placa
                     }
                     // Rota: linha por ruas, origem e destino. Se o destino é um veículo,
@@ -394,6 +406,7 @@ fun MapaFrotaScreen(
                         item(key = "painel") {
                             PainelTelemetria(
                                 item = selecionado,
+                                enderecos = enderecos.takeIf { it.veiculoId == selecionado.veiculo.id },
                                 podeFechar = !modoMotorista,
                                 onFechar = { selecionadoId = null },
                                 onTracarRota = { tracarRota(destinoDoVeiculo(selecionado)) }
@@ -438,6 +451,7 @@ private fun textoViagem(v: SituacaoViagem, curto: Boolean = false): String {
         EtapaViagem.ENTREGA -> "Entregando em ${v.destinoNome} · sai em $tempo"
         EtapaViagem.VOLTA -> "Voltando ao CD$distancia · $tempo"
         EtapaViagem.DESCARGA -> "Descarregando no CD · sai em $tempo"
+        EtapaViagem.FORA_DE_OPERACAO -> "Sem motorista ativo · parado no CD"
     }
 }
 
@@ -457,6 +471,7 @@ private fun enquadrar(map: MapView, geo: List<GeoPoint>) {
 private fun corDoStatus(status: StatusVeiculo): Color = when (status) {
     StatusVeiculo.EM_TRANSITO -> TrakSyncTheme.colors.success
     StatusVeiculo.PARADO -> TrakSyncTheme.colors.warning
+    StatusVeiculo.SEM_MOTORISTA -> TrakSyncTheme.colors.textSecondary
 }
 
 @Composable
@@ -465,7 +480,9 @@ private fun FiltrosStatus(
     filtro: StatusVeiculo?,
     onFiltro: (StatusVeiculo?) -> Unit
 ) {
-    val emTransito = frota.count { it.telemetria.status == StatusVeiculo.EM_TRANSITO }
+    val emTransito = frota.count { it.status == StatusVeiculo.EM_TRANSITO }
+    val parados = frota.count { it.status == StatusVeiculo.PARADO }
+    val semMotorista = frota.size - emTransito - parados
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -483,14 +500,21 @@ private fun FiltrosStatus(
         FilterChip(
             selected = filtro == StatusVeiculo.PARADO,
             onClick = { onFiltro(StatusVeiculo.PARADO) },
-            label = { Text("Parados (${frota.size - emTransito})") }
+            label = { Text("Parados ($parados)") }
         )
+        if (semMotorista > 0 || filtro == StatusVeiculo.SEM_MOTORISTA) {
+            FilterChip(
+                selected = filtro == StatusVeiculo.SEM_MOTORISTA,
+                onClick = { onFiltro(StatusVeiculo.SEM_MOTORISTA) },
+                label = { Text("Sem motorista ($semMotorista)") }
+            )
+        }
     }
 }
 
 @Composable
 private fun CardVeiculo(item: VeiculoNoMapa, selecionado: Boolean, onClick: () -> Unit) {
-    val status = item.telemetria.status
+    val status = item.status
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -502,12 +526,20 @@ private fun CardVeiculo(item: VeiculoNoMapa, selecionado: Boolean, onClick: () -
         shape = MaterialTheme.shapes.medium
     ) {
         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.DirectionsCar,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
+            // Mesmo visual do marcador no mapa: círculo na cor do status com o símbolo do tipo.
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(corDoStatus(status), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    tipoVeiculo(item.veiculo.tipo).icone,
+                    contentDescription = tipoVeiculo(item.veiculo.tipo).label,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(modifier = Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.veiculo.placa, style = MaterialTheme.typography.titleSmall)
@@ -535,6 +567,7 @@ private fun CardVeiculo(item: VeiculoNoMapa, selecionado: Boolean, onClick: () -
 @Composable
 private fun PainelTelemetria(
     item: VeiculoNoMapa,
+    enderecos: EnderecosVeiculo?,
     podeFechar: Boolean,
     onFechar: () -> Unit,
     onTracarRota: () -> Unit
@@ -577,9 +610,10 @@ private fun PainelTelemetria(
                     }
                 }
             }
+            EnderecoAtual(enderecos)
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                ItemTelemetria("Status", t.status.label, corDoStatus(t.status))
+                ItemTelemetria("Status", item.status.label, corDoStatus(item.status))
                 ItemTelemetria("Velocidade", "${t.velocidadeKmh} km/h")
                 ItemTelemetria("Motor", if (t.motorLigado) "Ligado" else "Desligado")
                 ItemTelemetria("Portas", if (t.portasAbertas) "Abertas" else "Fechadas")
@@ -590,6 +624,14 @@ private fun PainelTelemetria(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(top = 12.dp)
             )
+            enderecos?.entrega?.let {
+                Text(
+                    "Endereço da entrega: ${it.linha1}${it.bairro?.let { b -> " – $b" }.orEmpty()}${it.cep?.let { c -> " · CEP $c" }.orEmpty()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TrakSyncTheme.colors.textSecondary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
             Text(
                 "Telemetria simulada · %.5f, %.5f".format(t.latitude, t.longitude),
                 style = MaterialTheme.typography.labelSmall,
@@ -606,6 +648,36 @@ private fun PainelTelemetria(
                 Icon(Icons.Default.Directions, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Traçar rota até este veículo", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+/** Endereço da posição atual do veículo, pela reverse geocoding API (Entrega 7). */
+@Composable
+private fun EnderecoAtual(enderecos: EnderecosVeiculo?) {
+    val atual = enderecos?.atual
+    val erro = enderecos?.erro
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(top = 12.dp)) {
+        Icon(
+            Icons.Default.LocationOn,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Column {
+            when {
+                atual != null -> {
+                    Text(atual.linha1, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                    Text(atual.linha2, style = MaterialTheme.typography.bodySmall, color = TrakSyncTheme.colors.textSecondary)
+                    // Falhou a atualização, mas há um endereço anterior: avisa que ele pode estar desatualizado.
+                    if (erro != null) {
+                        Text("Último endereço conhecido · $erro", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                erro != null -> Text("Endereço indisponível: $erro", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                else -> Text("Buscando endereço...", style = MaterialTheme.typography.bodySmall, color = TrakSyncTheme.colors.textSecondary)
             }
         }
     }
@@ -634,10 +706,21 @@ private fun CardRota(estado: EstadoRota, onRecalcular: () -> Unit, onLimpar: () 
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        "Saindo de: ${estado.tipoOrigem?.label ?: "obtendo localização..."}",
+                        "Saindo de: ${estado.tipoOrigem?.label ?: "obtendo localização..."}" +
+                            estado.enderecoOrigem?.let { " · ${it.resumo}" }.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = TrakSyncTheme.colors.textSecondary
                     )
+                    // Ponto escolhido no mapa ganha o endereço; veículo já é identificado pela placa.
+                    if (estado.destino?.veiculoId == null) {
+                        estado.enderecoDestino?.let {
+                            Text(
+                                "Destino: ${it.resumo}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TrakSyncTheme.colors.textSecondary
+                            )
+                        }
+                    }
                 }
                 IconButton(onClick = onLimpar) {
                     Icon(Icons.Default.Close, contentDescription = "Limpar rota")

@@ -9,7 +9,9 @@ enum class EtapaViagem(val label: String) {
     IDA("Indo para a entrega"),
     ENTREGA("Entregando"),
     VOLTA("Voltando ao CD"),
-    DESCARGA("Descarregando no CD")
+    DESCARGA("Descarregando no CD"),
+    /** Sem motorista ativo associado: o veículo não viaja, fica no pátio do CD. */
+    FORA_DE_OPERACAO("Sem motorista ativo")
 }
 
 /** Um passo da viagem: a telemetria e onde ele cai no trajeto da etapa (null nas paradas). */

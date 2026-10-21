@@ -68,4 +68,25 @@ object SimuladorFrota {
     }
 
     fun telemetria(placa: String, passo: Long): PontoTelemetria = situacao(placa, passo).telemetria
+
+    /**
+     * Veículo sem motorista ativo: parado no pátio do CD, motor desligado e portas fechadas.
+     * Cada placa ganha uma vaga fixa (~25 m do CD) pra os marcadores não ficarem sobrepostos.
+     */
+    fun foraDeOperacao(placa: String): SituacaoViagem {
+        val angulo = Math.toRadians((abs(placa.uppercase().hashCode()) % 360).toDouble())
+        val vaga = GeoPoint(
+            CENTRO_DISTRIBUICAO.latitude + 0.00022 * kotlin.math.cos(angulo),
+            CENTRO_DISTRIBUICAO.longitude + 0.00022 * kotlin.math.sin(angulo)
+        )
+        return SituacaoViagem(
+            telemetria = PontoTelemetria(vaga.latitude, vaga.longitude, 0, motorLigado = false, portasAbertas = false),
+            etapa = EtapaViagem.FORA_DE_OPERACAO,
+            destinoNome = "",
+            destino = CENTRO_DISTRIBUICAO,
+            trajetoRestante = emptyList(),
+            metrosRestantes = 0.0,
+            segundosRestantes = 0
+        )
+    }
 }

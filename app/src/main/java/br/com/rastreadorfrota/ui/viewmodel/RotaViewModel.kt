@@ -3,6 +3,8 @@ package br.com.rastreadorfrota.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.rastreadorfrota.geocoding.Endereco
+import br.com.rastreadorfrota.geocoding.GeocodingService
 import br.com.rastreadorfrota.rota.Rota
 import br.com.rastreadorfrota.rota.RotaService
 import br.com.rastreadorfrota.rota.localizacaoAtual
@@ -34,7 +36,10 @@ data class EstadoRota(
     val calculando: Boolean = false,
     /** Explica por que a origem não é o GPS (sem permissão, sem leitura, longe demais). */
     val aviso: String? = null,
-    val erro: String? = null
+    val erro: String? = null,
+    /** Endereços da origem e do destino (Entrega 7); null enquanto busca ou se falhar. */
+    val enderecoOrigem: Endereco? = null,
+    val enderecoDestino: Endereco? = null
 )
 
 /**
@@ -52,6 +57,11 @@ class RotaViewModel(application: Application) : AndroidViewModel(application) {
         calculo?.cancel() // um pedido novo substitui o anterior
         _estado.value = EstadoRota(destino = destino, calculando = true)
         calculo = viewModelScope.launch {
+            // Endereço do destino em paralelo; se falhar, o card só não mostra o endereço.
+            launch {
+                runCatching { GeocodingService.endereco(destino.ponto) }
+                    .onSuccess { e -> _estado.update { it.copy(enderecoDestino = e) } }
+            }
             val gps = localizacaoAtual(getApplication())
             val distanciaGps = gps?.distanceToAsDouble(destino.ponto)
             val usarGps = distanciaGps != null && distanciaGps <= DISTANCIA_MAXIMA_M
@@ -68,6 +78,10 @@ class RotaViewModel(application: Application) : AndroidViewModel(application) {
                             "a rota parte do centro de distribuição."
                     }
                 )
+            }
+            launch {
+                runCatching { GeocodingService.endereco(origem) }
+                    .onSuccess { e -> _estado.update { it.copy(enderecoOrigem = e) } }
             }
             try {
                 val rota = RotaService.calcular(origem, destino.ponto, getApplication<Application>().packageName)
