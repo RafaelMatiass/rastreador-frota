@@ -3,6 +3,7 @@ package br.com.rastreadorfrota
 import android.app.Application
 import br.com.rastreadorfrota.data.sync.SyncEngine
 import br.com.rastreadorfrota.geofence.NotificacaoAlertas
+import br.com.rastreadorfrota.ui.theme.PreferenciaTema
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,7 @@ class RastreadorApp : Application() {
             userAgentValue = packageName
             load(this@RastreadorApp, getSharedPreferences("osmdroid", MODE_PRIVATE))
         }
+        PreferenciaTema.carregar(this)
         NotificacaoAlertas.criarCanal(this)
         SyncEngine.inicializar(this, escopo)
     }

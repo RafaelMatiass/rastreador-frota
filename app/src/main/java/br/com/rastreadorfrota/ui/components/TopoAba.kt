@@ -10,7 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
+import br.com.rastreadorfrota.ui.theme.PreferenciaTema
+import br.com.rastreadorfrota.ui.theme.TemaApp
+import br.com.rastreadorfrota.ui.theme.temaEscuroAtivo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +31,20 @@ import androidx.compose.ui.unit.dp
 import br.com.rastreadorfrota.auth.Usuario
 import br.com.rastreadorfrota.ui.theme.Espaco
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
+
+/** Sol/lua: alterna entre claro e escuro com um toque (a opção "Sistema" fica no Perfil). */
+@Composable
+fun BotaoTema() {
+    val context = LocalContext.current
+    val escuro = temaEscuroAtivo()
+    IconButton(onClick = { PreferenciaTema.definir(context, if (escuro) TemaApp.CLARO else TemaApp.ESCURO) }) {
+        Icon(
+            if (escuro) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+            contentDescription = if (escuro) "Usar tema claro" else "Usar tema escuro",
+            tint = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
 
 /**
  * Cabeçalho das abas: título grande, subtítulo e o avatar que abre o perfil.
@@ -64,6 +86,7 @@ fun TopoAba(
             )
         }
         acoes()
+        BotaoTema()
         if (usuario != null) {
             Spacer(Modifier.width(4.dp))
             IconButton(onClick = onAbrirPerfil) {

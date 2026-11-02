@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -18,13 +19,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,6 +63,8 @@ import br.com.rastreadorfrota.ui.components.DialogoConfirmacao
 import br.com.rastreadorfrota.ui.components.FotoLocal
 import br.com.rastreadorfrota.ui.components.StatusPill
 import br.com.rastreadorfrota.ui.theme.Espaco
+import br.com.rastreadorfrota.ui.theme.PreferenciaTema
+import br.com.rastreadorfrota.ui.theme.TemaApp
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
 
 /** Meu perfil: foto (só no aparelho), dados cadastrais editáveis e sair da conta. */
@@ -71,6 +81,7 @@ fun PerfilScreen(
     val state = viewModel.uiState
     val salvando = state is PerfilUiState.Salvando
     val pendentes by SyncEngine.pendentes.collectAsState()
+    val tema by PreferenciaTema.tema.collectAsState()
     var versaoFoto by remember { mutableIntStateOf(0) }
     var confirmarSaida by remember { mutableStateOf(false) }
 
@@ -140,6 +151,43 @@ fun PerfilScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(Espaco.md)) {
                     BotaoSecundario("Descartar", null, viewModel::descartarAlteracoes, Modifier.weight(1f), enabled = viewModel.houveAlteracao && !salvando)
                     BotaoPrincipal("Salvar", viewModel::salvar, Modifier.weight(1f), enabled = viewModel.houveAlteracao, carregando = salvando)
+                }
+
+                CardTrak(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(Espaco.lg)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(Espaco.md))
+                            Text("Aparência", style = MaterialTheme.typography.titleSmall)
+                        }
+                        Spacer(Modifier.height(Espaco.md))
+                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                            TemaApp.entries.forEachIndexed { i, opcao ->
+                                SegmentedButton(
+                                    selected = tema == opcao,
+                                    onClick = { PreferenciaTema.definir(context, opcao) },
+                                    shape = SegmentedButtonDefaults.itemShape(i, TemaApp.entries.size),
+                                    icon = {
+                                        Icon(
+                                            when (opcao) {
+                                                TemaApp.SISTEMA -> Icons.Filled.BrightnessAuto
+                                                TemaApp.CLARO -> Icons.Filled.LightMode
+                                                TemaApp.ESCURO -> Icons.Filled.DarkMode
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                ) { Text(opcao.rotulo) }
+                            }
+                        }
+                        Text(
+                            "\"Sistema\" acompanha o modo claro/escuro do celular.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TrakSyncTheme.colors.textSecondary,
+                            modifier = Modifier.padding(top = Espaco.sm)
+                        )
+                    }
                 }
 
                 CardTrak(Modifier.fillMaxWidth()) {

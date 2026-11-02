@@ -1,8 +1,12 @@
 package br.com.rastreadorfrota
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.DisposableEffect
+import br.com.rastreadorfrota.ui.theme.temaEscuroAtivo
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -30,7 +34,14 @@ class MainActivity : ComponentActivity() {
         placaNotificacao.value = intent?.getStringExtra(NotificacaoAlertas.EXTRA_PLACA)
 
         setContent {
-            RastreadorFrotaTheme {
+            val escuro = temaEscuroAtivo()
+            // Ícones da barra de status/navegação acompanham o tema escolhido no app, não só o do aparelho.
+            DisposableEffect(escuro) {
+                val estilo = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { escuro }
+                enableEdgeToEdge(statusBarStyle = estilo, navigationBarStyle = estilo)
+                onDispose {}
+            }
+            RastreadorFrotaTheme(darkTheme = escuro) {
                 AppNavGraph(
                     sessao = sessao,
                     placaNotificacao = placaNotificacao.value,
