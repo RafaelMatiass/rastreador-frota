@@ -31,7 +31,12 @@ _**IFSP Araraquara**_
 
 ## 📱 Sobre o Projeto
 
-O **Rastreador de Frota** é um aplicativo Android voltado para o **gerenciamento e rastreamento de frotas de veículos de entrega**, permitindo o cadastro de veículos, motoristas e o acompanhamento das operações da frota de forma simples e organizada.
+**Projeto escolhido: #1 Veículos (Rastreamento de veículos de entrega).**
+
+O **TrakSync** ("Cada veículo. Uma visão.") é a gestão de frota para **distribuidoras regionais de alimentos e bebidas**: um centro de distribuição e caminhões, furgões e vans entregando para mercados e restaurantes. A empresa demo é a fictícia *Distribuidora Morada do Sol*, em Araraquara.
+
+- **Gestor de frota** (perfil Controlador), no escritório: dashboard da operação, aprova os veículos cadastrados pelos motoristas, atribui motorista ↔ veículo (um para um), cria cercas e recebe alertas de entrada e saída.
+- **Motorista**, na rua: vê o veículo do turno, faz a vistoria com foto e km, navega até a entrega (no app, no Waze ou no Google Maps) e tem as chegadas e saídas registradas pelo GPS.
 
 O projeto segue o cronograma da disciplina, com **entregas quinzenais** e a exigência de **PoCs (Provas de Conceito)** isoladas, demonstrando o uso individual de cada tecnologia estudada no semestre.
 
@@ -77,6 +82,7 @@ pocs/
 | Entrega 5 | Simulador de telemetria (`e5-mapa/rafael`) | Sequência pré-determinada de posições com telemetria, loop único com `StateFlow` e cor do marcador por status |
 | Entrega 6 | Geração de rotas (`e6-rotas/rafael`) | Localização atual (FusedLocationProvider), destino com toque longo, rota por ruas no OSRM desenhada como `Polyline` e veículo simulado percorrendo a rota |
 | Entrega 7 | Reverse geocoding (`e7-geocoding/rafael`) | Toque no mapa → endereço pela API da Geoapify, com cache por coordenada e contador de requisições |
+| Entrega 8 | Geofencing (`e8-geofencing/otavio`) | Cerca real com `GeofencingClient` (GPS do aparelho) e cerca simulada por distância (haversine), as duas com notificação |
 
 </details>
 
@@ -85,6 +91,23 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
+<summary>🛰️ <b>Entrega 8 / Semana 17 — Geofencing e versão 1.0</b></summary>
+
+<br>
+
+- [x] Cercas desenhadas no mapa (centro + raio), para toda a frota, um tipo de veículo (grupo) ou placas específicas
+- [x] Alertas de entrada e saída da frota simulada, com notificação Android e histórico na aba Alertas
+- [x] Cercas reais no GPS do motorista (`GeofencingClient`), com alerta enviado ao gestor pelo Firestore
+- [x] Navegação por abas, dashboard interativo, onboarding, tema claro/escuro
+- [x] Um veículo por motorista; veículo do motorista vai para aprovação do gestor
+- [x] Mapa em tela cheia, sem toque longo acidental no zoom; planejador de rotas com busca de endereço, passo a passo e Waze/Google Maps
+- [x] PoC `pocs/e8-geofencing/otavio` (cerca real + simulada)
+
+Detalhes e roteiro de teste: [`docs/entrega8.md`](docs/entrega8.md). **Publique o `firestore.rules` atualizado no console do Firebase.**
+
+</details>
+
+<details>
 <summary>📍 <b>Entrega 7 / Semana 15 — Endereços a partir das coordenadas</b></summary>
 
 <br>
@@ -177,7 +200,7 @@ Detalhes, roteiro de teste e roteiro de apresentação: [`docs/entrega5.md`](doc
 
 <br>
 
-- **Entrega 8 / Semana 17 (18/11):** notificações de geofencing (entrada e saída de perímetro)
+- **Semana 17–19:** testes de aceitação (UAT), correções e apresentação final
 
 </details>
 
