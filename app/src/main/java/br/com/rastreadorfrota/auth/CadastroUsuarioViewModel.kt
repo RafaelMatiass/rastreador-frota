@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 sealed interface CadastroUsuarioUiState {
     data object Idle : CadastroUsuarioUiState
     data object Loading : CadastroUsuarioUiState
-    data class Success(val perfil: Perfil) : CadastroUsuarioUiState
+    data class Success(val usuario: Usuario) : CadastroUsuarioUiState
     data class Error(val message: String) : CadastroUsuarioUiState
 }
 
@@ -44,7 +44,7 @@ class CadastroUsuarioViewModel(
         viewModelScope.launch {
             uiState = try {
                 val usuario = authRepository.cadastrar(formulario.paraUsuario(uid = ""), formulario.senha)
-                CadastroUsuarioUiState.Success(usuario.perfil)
+                CadastroUsuarioUiState.Success(usuario)
             } catch (e: Exception) {
                 android.util.Log.e("CadastroDebug", "Erro no cadastro", e)
                 CadastroUsuarioUiState.Error(mensagemErroFirebase(e))

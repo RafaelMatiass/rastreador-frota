@@ -11,9 +11,14 @@ import kotlinx.coroutines.flow.Flow
 class MotoristaRepository(private val dao: MotoristaDao) {
     val motoristas: Flow<List<MotoristaEntity>> = dao.observarTodos()
 
+    /** Um veículo, um motorista: quem estava com ele fica sem (ver [MotoristaDao.atribuirExclusivo]). */
     suspend fun associarVeiculo(motorista: MotoristaEntity, veiculoId: Long?) =
-        dao.atualizar(motorista.copy(veiculoId = veiculoId, sincronizado = false))
+        dao.atribuirExclusivo(motorista.uid, veiculoId)
 
+    /** Desativado, o motorista perde o acesso e o veículo dele fica livre. */
     suspend fun alterarAtivo(motorista: MotoristaEntity, ativo: Boolean) =
-        dao.atualizar(motorista.copy(ativo = ativo, sincronizado = false))
+        if (ativo) dao.definirAtivo(motorista.uid, true) else dao.desativarLiberandoVeiculo(motorista.uid)
+
+    /** Veículo excluído ou desativado não pode continuar com motorista. */
+    suspend fun liberarVeiculo(veiculoId: Long) = dao.soltarVeiculo(veiculoId)
 }

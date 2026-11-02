@@ -12,10 +12,16 @@ import java.net.URL
 data class Rota(
     val pontos: List<GeoPoint>,
     val distanciaMetros: Double,
-    val duracaoSegundos: Double
+    val duracaoSegundos: Double,
+    val instrucoes: List<InstrucaoRota> = emptyList()
 ) {
     val distanciaTexto: String get() = formatarDistancia(distanciaMetros)
     val duracaoTexto: String get() = formatarDuracao(duracaoSegundos)
+
+    /** Hora estimada de chegada saindo agora, ex.: "14:32". */
+    fun chegadaTexto(agoraMs: Long = System.currentTimeMillis()): String =
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale("pt", "BR"))
+            .format(java.util.Date(agoraMs + (duracaoSegundos * 1000).toLong()))
 }
 
 /** "850 m" ou "2,9 km". */
@@ -51,7 +57,7 @@ object RotaService {
         withContext(Dispatchers.IO) {
             val url = URL(
                 "$BASE/${origem.longitude},${origem.latitude};${destino.longitude},${destino.latitude}" +
-                    "?overview=full&geometries=geojson"
+                    "?overview=full&geometries=geojson&steps=true"
             )
             val conexao = url.openConnection() as HttpURLConnection
             conexao.connectTimeout = 10_000
@@ -80,6 +86,33 @@ object RotaService {
             val par = coordenadas.getJSONArray(i)
             GeoPoint(par.getDouble(1), par.getDouble(0)) // [lon, lat] -> GeoPoint(lat, lon)
         }
-        return Rota(pontos, rota.getDouble("distance"), rota.getDouble("duration"))
+        return Rota(pontos, rota.getDouble("distance"), rota.getDouble("duration"), instrucoes(rota))
+    }
+
+    /** Passo a passo da rota (steps=true), já traduzido para português. */
+    private fun instrucoes(rota: JSONObject): List<InstrucaoRota> {
+        val pernas = rota.optJSONArray("legs") ?: return emptyList()
+        val lista = mutableListOf<InstrucaoRota>()
+        for (p in 0 until pernas.length()) {
+            val passos = pernas.getJSONObject(p).optJSONArray("steps") ?: continue
+            for (i in 0 until passos.length()) {
+                val passo = passos.getJSONObject(i)
+                val manobra = passo.getJSONObject("maneuver")
+                val (texto, tipo) = InstrucoesRota.traduzir(
+                    tipo = manobra.optString("type"),
+                    modificador = manobra.optString("modifier").takeIf { it.isNotBlank() },
+                    rua = passo.optString("name").takeIf { it.isNotBlank() },
+                    saidaRotatoria = manobra.optInt("exit", 0).takeIf { it > 0 }
+                )
+                // O OSRM repete "continue" na mesma rua: junta os trechos para a lista ficar curta.
+                val anterior = lista.lastOrNull()
+                if (anterior != null && anterior.texto == texto) {
+                    lista[lista.lastIndex] = anterior.copy(distanciaMetros = anterior.distanciaMetros + passo.optDouble("distance"))
+                } else {
+                    lista += InstrucaoRota(texto, passo.optDouble("distance"), tipo)
+                }
+            }
+        }
+        return lista
     }
 }

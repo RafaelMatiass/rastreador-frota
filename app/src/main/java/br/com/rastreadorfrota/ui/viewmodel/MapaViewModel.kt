@@ -1,41 +1,36 @@
 package br.com.rastreadorfrota.ui.viewmodel
 
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.rastreadorfrota.data.local.AppDatabase
-import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
-import br.com.rastreadorfrota.data.repository.MotoristaRepository
-import br.com.rastreadorfrota.data.repository.VeiculoRepository
-import br.com.rastreadorfrota.simulacao.EtapaViagem
-import br.com.rastreadorfrota.simulacao.PontoTelemetria
-import br.com.rastreadorfrota.simulacao.SimuladorFrota
-import br.com.rastreadorfrota.simulacao.SituacaoViagem
+import br.com.rastreadorfrota.data.local.entity.CercaEntity
+import br.com.rastreadorfrota.data.repository.FrotaAoVivoRepository
+import br.com.rastreadorfrota.data.repository.VeiculoNoMapa
 import br.com.rastreadorfrota.simulacao.StatusVeiculo
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import org.osmdroid.util.GeoPoint
 
-data class VeiculoNoMapa(val veiculo: VeiculoEntity, val viagem: SituacaoViagem) {
-    val telemetria: PontoTelemetria get() = viagem.telemetria
-    val emOperacao: Boolean get() = viagem.etapa != EtapaViagem.FORA_DE_OPERACAO
-
-    /** Em trânsito / parado pela telemetria; sem motorista ativo, "Sem motorista". */
-    val status: StatusVeiculo get() = if (emOperacao) telemetria.status else StatusVeiculo.SEM_MOTORISTA
-}
+/** Centro e zoom do mapa, guardados para a aba voltar onde estava. */
+data class CameraMapa(val centro: GeoPoint, val zoom: Double)
 
 /**
- * Junta os veículos do cache local (Room) com a viagem simulada (posição, telemetria, destino).
- * Só faz viagem o veículo com motorista ATIVO associado; os demais ficam parados no CD.
+ * Estado da aba Mapa. Fica no ViewModel (e não na tela) para sobreviver à troca de abas:
+ * a câmera, o veículo selecionado, o filtro e o "seguir veículo" continuam iguais na volta.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class MapaViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = AppDatabase.getInstance(application)
-    private val veiculoRepository = VeiculoRepository(db.veiculoDao())
-    private val motoristaRepository = MotoristaRepository(db.motoristaDao())
+    private val repositorio = FrotaAoVivoRepository.getInstance(application)
 
     /** null até a tela dizer quem está olhando o mapa (evita mostrar a regra errada no 1º quadro). */
     private val modoMotorista = MutableStateFlow<Boolean?>(null)
@@ -45,30 +40,21 @@ class MapaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** null enquanto o Room ainda não respondeu (pra não piscar o "nenhum veículo"). */
-    val frota: StateFlow<List<VeiculoNoMapa>?> =
-        combine(
-            veiculoRepository.veiculos,
-            motoristaRepository.motoristas,
-            SimuladorFrota.passos,
-            modoMotorista.filterNotNull()
-        ) { veiculos, motoristas, passo, motorista ->
-            val comMotoristaAtivo = motoristas.filter { it.ativo }.mapNotNull { it.veiculoId }.toSet()
-            veiculos
-                .filter { it.ativo }
-                .map { veiculo ->
-                    // No modo motorista o veículo é o do próprio usuário logado, que é ativo
-                    // por definição (inativo não entra no app). Além disso, o aparelho do
-                    // motorista não baixa a tabela de motoristas.
-                    val emOperacao = motorista || veiculo.id in comMotoristaAtivo
-                    VeiculoNoMapa(
-                        veiculo,
-                        if (emOperacao) SimuladorFrota.situacao(veiculo.placa, passo)
-                        else SimuladorFrota.foraDeOperacao(veiculo.placa)
-                    )
-                }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = null
-        )
+    val frota: StateFlow<List<VeiculoNoMapa>?> = modoMotorista.filterNotNull()
+        .flatMapLatest { repositorio.frota(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialValue = null)
+
+    val cercas: StateFlow<List<CercaEntity>> = AppDatabase.getInstance(application).cercaDao().observarTodas()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
+
+    var camera by mutableStateOf<CameraMapa?>(null)
+    var selecionadoId by mutableStateOf<Long?>(null)
+    var filtro by mutableStateOf<StatusVeiculo?>(null)
+    var mostrarCercas by mutableStateOf(true)
+
+    /** Seguindo o veículo selecionado: a câmera acompanha cada passo até o usuário mexer no mapa. */
+    var seguindo by mutableStateOf(false)
+
+    /** A frota já foi enquadrada uma vez (na 1ª abertura). */
+    var enquadrouFrota = false
 }

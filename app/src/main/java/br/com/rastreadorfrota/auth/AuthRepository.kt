@@ -61,6 +61,10 @@ class AuthRepository(
         colecaoUsuarios.document(usuario.uid).set(campos, SetOptions.merge()).await()
     }
 
+    suspend fun enviarRecuperacaoSenha(email: String) {
+        firebaseAuth.sendPasswordResetEmail(email).await()
+    }
+
     fun logout() {
         firebaseAuth.signOut()
     }

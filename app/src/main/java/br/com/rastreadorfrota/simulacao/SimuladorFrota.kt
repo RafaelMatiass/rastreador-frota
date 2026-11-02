@@ -11,6 +11,8 @@ import kotlin.math.abs
 data class SituacaoViagem(
     val telemetria: PontoTelemetria,
     val etapa: EtapaViagem,
+    /** Cliente da entrega desta viagem (vazio fora de operação). */
+    val clienteNome: String,
     val destinoNome: String,
     val destino: GeoPoint,
     /** Do ponto atual até o fim da etapa (vazio nas paradas): a linha que "encolhe" no mapa. */
@@ -59,6 +61,7 @@ object SimuladorFrota {
         return SituacaoViagem(
             telemetria = atual.telemetria,
             etapa = atual.etapa,
+            clienteNome = viagem.clienteNome,
             destinoNome = viagem.destinoNome,
             destino = viagem.destino,
             trajetoRestante = restante,
@@ -82,6 +85,7 @@ object SimuladorFrota {
         return SituacaoViagem(
             telemetria = PontoTelemetria(vaga.latitude, vaga.longitude, 0, motorLigado = false, portasAbertas = false),
             etapa = EtapaViagem.FORA_DE_OPERACAO,
+            clienteNome = "",
             destinoNome = "",
             destino = CENTRO_DISTRIBUICAO,
             trajetoRestante = emptyList(),

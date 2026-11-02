@@ -4,7 +4,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 
 enum class Perfil(val label: String) {
     MOTORISTA("Motorista"),
-    CONTROLADOR("Controlador")
+    CONTROLADOR("Gestor de frota")
 }
 
 enum class CategoriaCnh { A, B, C, D, E, AB, AC, AD, AE }

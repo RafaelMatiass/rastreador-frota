@@ -1,4 +1,4 @@
-// Regras do Cloud Firestore do Rastreador de Frota.
+// Regras do Cloud Firestore do TrakSync (Rastreador de Frota).
 // Aplicar em: Console do Firebase > Firestore Database > Regras (colar e publicar).
 rules_version = '2';
 service cloud.firestore {
@@ -8,9 +8,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function meuPerfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
     function ehControlador() {
-      return logado() &&
-        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'CONTROLADOR';
+      return logado() && meuPerfil().perfil == 'CONTROLADOR';
     }
 
     function camposAlterados() {
@@ -41,8 +44,40 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Veículos: o gestor faz tudo. O motorista cadastra como PENDENTE (vai para
+    // aprovação), edita o que ele mesmo propôs enquanto pendente, e no veículo
+    // atribuído a ele só registra a vistoria e dados de uso.
     match /veiculos/{id} {
-      allow read, write: if logado();
+      allow read: if logado();
+
+      allow create: if ehControlador() || (logado() &&
+        request.resource.data.situacao == 'PENDENTE' &&
+        request.resource.data.cadastradoPorUid == request.auth.uid);
+
+      allow update: if ehControlador() || (logado() && (
+        (resource.data.cadastradoPorUid == request.auth.uid &&
+          resource.data.situacao == 'PENDENTE' &&
+          request.resource.data.situacao == 'PENDENTE') ||
+        (meuPerfil().veiculoRemoteId == id &&
+          camposAlterados().hasOnly(['modelo', 'capacidadeCargaKg', 'odometroKm',
+            'ultimaVistoriaEm', 'observacoes', 'updatedAt']))
+      ));
+
+      allow delete: if false; // exclusão é lógica (campo "removido"), feita pelo gestor
+    }
+
+    // Cercas (geofencing, Entrega 8): todos leem (o aparelho do motorista registra
+    // as cercas reais); só o gestor cria, altera e exclui.
+    match /cercas/{id} {
+      allow read: if logado();
+      allow write: if ehControlador();
+    }
+
+    // Alertas vindos do GPS real do motorista: ele cria os dele; o gestor lê todos.
+    match /alertas/{id} {
+      allow create, update: if logado() && request.resource.data.uid == request.auth.uid;
+      allow read: if ehControlador() || (logado() && resource.data.uid == request.auth.uid);
+      allow delete: if false;
     }
   }
 }

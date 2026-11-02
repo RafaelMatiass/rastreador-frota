@@ -2,7 +2,8 @@ package br.com.rastreadorfrota.simulacao
 
 import org.osmdroid.util.GeoPoint
 
-/** Centro de distribuição (CD) da frota em Araraquara: início e fim de todas as viagens. */
+/** Centro de distribuição (CD) da Distribuidora Morada do Sol em Araraquara: início e fim de todas as viagens. */
+const val NOME_CD = "CD Morada do Sol"
 val CENTRO_DISTRIBUICAO = GeoPoint(-21.815086, -48.204879)
 
 enum class EtapaViagem(val label: String) {
@@ -27,6 +28,8 @@ internal class PassoViagem(
  * para cada passo, o índice do último passo da mesma etapa (para calcular o tempo restante).
  */
 class Viagem internal constructor(
+    /** Cliente da distribuidora que recebe a entrega (ex.: "Supermercado Central"). */
+    val clienteNome: String,
     val destinoNome: String,
     internal val ida: List<GeoPoint>,
     internal val volta: List<GeoPoint>,
@@ -86,7 +89,7 @@ private class MontadorViagem {
 }
 
 /** [kmhIda] e [kmhVolta]: velocidade média que o OSRM estimou para cada trajeto. */
-private fun viagem(destinoNome: String, ida: String, kmhIda: Int, volta: String, kmhVolta: Int): Viagem {
+private fun viagem(clienteNome: String, destinoNome: String, ida: String, kmhIda: Int, volta: String, kmhVolta: Int): Viagem {
     val trajetoIda = PolylineCodec.decodificar(ida)
     val trajetoVolta = PolylineCodec.decodificar(volta)
     val passos = MontadorViagem()
@@ -95,13 +98,13 @@ private fun viagem(destinoNome: String, ida: String, kmhIda: Int, volta: String,
         .percurso(trajetoVolta, EtapaViagem.VOLTA, kmhVolta, semaforos = 1)
         .parada(EtapaViagem.DESCARGA, PASSOS_DESCARGA, motorLigado = false, portasAbertas = true)
         .passos
-    return Viagem(destinoNome, trajetoIda, trajetoVolta, passos)
+    return Viagem(clienteNome, destinoNome, trajetoIda, trajetoVolta, passos)
 }
 
 /** As 4 viagens da frota (trajetos em `TrajetosRuas.kt`). Nada é aleatório: geram sempre os mesmos passos. */
 internal val viagensSimuladas: List<Viagem> = listOf(
-    viagem("Rua Papa João Paulo I", TRAJETO_IDA_1, 56, TRAJETO_VOLTA_1, 48),
-    viagem("Avenida Queiroz Filho", TRAJETO_IDA_2, 47, TRAJETO_VOLTA_2, 38),
-    viagem("Avenida Barroso", TRAJETO_IDA_3, 37, TRAJETO_VOLTA_3, 36),
-    viagem("Acesso Rodoviário Abdo Najn", TRAJETO_IDA_4, 65, TRAJETO_VOLTA_4, 37)
+    viagem("Supermercado Central", "Rua Papa João Paulo I", TRAJETO_IDA_1, 56, TRAJETO_VOLTA_1, 48),
+    viagem("Restaurante Sabor da Terra", "Avenida Queiroz Filho", TRAJETO_IDA_2, 47, TRAJETO_VOLTA_2, 38),
+    viagem("Empório Morada do Sol", "Avenida Barroso", TRAJETO_IDA_3, 37, TRAJETO_VOLTA_3, 36),
+    viagem("Atacado Vila Xavier", "Acesso Rodoviário Abdo Najn", TRAJETO_IDA_4, 65, TRAJETO_VOLTA_4, 37)
 )

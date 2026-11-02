@@ -23,8 +23,8 @@ android {
         applicationId = "br.com.rastreadorfrota"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-entrega1"
+        versionCode = 8
+        versionName = "1.0.0"
         buildConfigField("String", "GEOAPIFY_API_KEY", "\"$chaveGeoapify\"")
     }
 
@@ -63,6 +63,12 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.8.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
+    // collectAsStateWithLifecycle: a simulação para de rodar quando a tela sai de cena
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+    // Splash do sistema mantida até a sessão resolver (sem piscar a tela de login)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    // Fotos com redimensionamento e cache, fora da thread principal
+    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     // Localização atual do aparelho (origem da rota, Entrega 6)
     implementation("com.google.android.gms:play-services-location:21.3.0")

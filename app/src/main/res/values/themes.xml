@@ -1,3 +1,15 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.RastreadorFrota" parent="android:Theme.Material.Light.NoActionBar" />
+<resources>
+    <!-- Splash do sistema (core-splashscreen): fica até a sessão do usuário ser resolvida. -->
+    <style name="Theme.RastreadorFrota.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/janela</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.RastreadorFrota</item>
+    </style>
+
+    <!-- Tema da janela: só o fundo e as barras. O visual de verdade vem do Compose. -->
+    <style name="Theme.RastreadorFrota" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/janela</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>
