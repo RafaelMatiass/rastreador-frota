@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.util.Calendar
 
-enum class TipoAtencao { PENDENTE, CNH_VENCENDO, PORTA_ABERTA, VELOCIDADE, SEM_MOTORISTA, MOTORISTA_SEM_VEICULO }
+enum class TipoAtencao { PENDENTE, CNH_VENCENDO, PORTA_ABERTA, VELOCIDADE, FORA_DA_ROTA, SEM_MOTORISTA, MOTORISTA_SEM_VEICULO }
 
 /** Um item da lista "Precisa de atenção" do dashboard. */
 data class ItemAtencao(
@@ -95,6 +95,16 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
         frota.filter { it.portaAbertaEmMovimento }.forEach {
             add(ItemAtencao(TipoAtencao.PORTA_ABERTA, "${it.veiculo.placa} com porta aberta em movimento", "${it.telemetria.velocidadeKmh} km/h", placa = it.veiculo.placa))
+        }
+        frota.filter { it.foraDaRota }.forEach {
+            add(
+                ItemAtencao(
+                    TipoAtencao.FORA_DA_ROTA,
+                    "${it.veiculo.placa} fora da rota planejada",
+                    "Entrega para ${it.viagem.clienteNome} · ${it.motorista?.nome?.substringBefore(" ") ?: "motorista"}",
+                    placa = it.veiculo.placa
+                )
+            )
         }
         frota.filter { it.acimaDaVelocidade }.forEach {
             add(

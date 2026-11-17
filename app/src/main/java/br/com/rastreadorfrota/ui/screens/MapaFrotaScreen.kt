@@ -240,6 +240,14 @@ fun MapaFrotaScreen(
     val marcadorHalo = remember { Marker(mapa).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER); setInfoWindow(null) } }
     val minhaPosicao = remember { MyLocationNewOverlay(GpsMyLocationProvider(context), mapa) }
     val linhasViagem = remember { mutableMapOf<Long, Polyline>() }
+    // Rota PLANEJADA do selecionado (cinza tracejada): mostra por onde ele deveria ir quando desvia.
+    val linhaPlanejada = remember {
+        Polyline(mapa).apply {
+            outlinePaint.strokeWidth = 10f
+            outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(28f, 18f), 0f)
+            setOnClickListener { _, _, _ -> false }
+        }
+    }
     val marcadores = remember { mutableMapOf<Long, Marker>() }
     val circulosCercas = remember { mutableListOf<Polygon>() }
     val aoTocarMarcador by rememberUpdatedState<(Long) -> Unit>({ id -> frotaVisivel?.find { it.veiculo.id == id }?.let(::selecionar) })
@@ -334,7 +342,7 @@ fun MapaFrotaScreen(
         enderecoViewModel.acompanhar(
             veiculoId = selecionado?.veiculo?.id,
             posicao = selecionado?.posicao,
-            destinoEntrega = selecionado?.takeIf { it.emOperacao }?.viagem?.destino
+            destinoEntrega = selecionado?.takeIf { it.emEntrega }?.viagem?.destino
         )
     }
 
@@ -430,7 +438,7 @@ fun MapaFrotaScreen(
                                     podeFechar = !modoMotorista,
                                     onFechar = { viewModel.selecionadoId = null },
                                     onTracarRota = { comLocalizacao { rotaViewModel.tracarAte(destinoDoVeiculo(selecionado)) } },
-                                    onNavegarEntrega = if (modoMotorista && selecionado.emOperacao) {
+                                    onNavegarEntrega = if (modoMotorista && selecionado.emEntrega) {
                                         {
                                             comLocalizacao {
                                                 rotaViewModel.tracarAte(PontoRota.Fixo(selecionado.viagem.destino, selecionado.viagem.clienteNome))
@@ -470,14 +478,19 @@ fun MapaFrotaScreen(
                         // Tira do mapa quem saiu (filtro, exclusão, inativação).
                         marcadores.keys.filter { it !in visiveis }.forEach { id -> map.overlays.remove(marcadores.remove(id)) }
                         linhasViagem.keys.filter { it !in visiveis }.forEach { id -> map.overlays.remove(linhasViagem.remove(id)) }
-                        // Trajeto restante: fino e translúcido; o do selecionado, forte.
+                        if (linhaPlanejada !in map.overlays) map.overlays.add(1 + circulosCercas.size, linhaPlanejada)
+                        linhaPlanejada.outlinePaint.color = corCd
+                        linhaPlanejada.setPoints(selecionado?.takeIf { it.emEntrega }?.viagem?.rotaPlanejada.orEmpty())
+                        linhaPlanejada.isEnabled = selecionado?.emEntrega == true && !estadoRota.ativa
+                        // Trajeto restante: fino e translúcido; o do selecionado, forte. Fora da rota: vermelho.
                         visiveis.forEach { (id, item) ->
                             val linha = linhasViagem.getOrPut(id) {
                                 Polyline(map).also { map.overlays.add(1 + circulosCercas.size, it) }
                             }
                             val destaque = id == selecionado?.veiculo?.id
                             linha.setPoints(item.viagem.trajetoRestante)
-                            linha.outlinePaint.color = if (destaque) corViagem else ColorUtils.setAlphaComponent(corViagem, 90)
+                            val corLinha = if (item.foraDaRota) corEntrega else corViagem
+                            linha.outlinePaint.color = if (destaque) corLinha else ColorUtils.setAlphaComponent(corLinha, 90)
                             linha.outlinePaint.strokeWidth = if (destaque) 12f else 6f
                             linha.isEnabled = item.viagem.trajetoRestante.size > 1 && (destaque || !estadoRota.ativa)
                         }
@@ -487,7 +500,7 @@ fun MapaFrotaScreen(
                             marcadorEntrega.title = "Entrega: ${it.clienteNome}"
                         }
                         marcadorEntrega.icon = iconeEntrega
-                        marcadorEntrega.isEnabled = selecionado?.emOperacao == true
+                        marcadorEntrega.isEnabled = selecionado?.emEntrega == true
                         marcadorHalo.icon = halo
                         selecionado?.let { marcadorHalo.position = it.posicao }
                         marcadorHalo.isEnabled = selecionado != null && selecionado.veiculo.id in visiveis
@@ -662,7 +675,7 @@ fun MapaFrotaScreen(
                 destino = estadoRota.destinoEscolhido,
                 campoInicial = campoInicial,
                 frota = if (modoMotorista) emptyList() else frotaVisivel.orEmpty(),
-                entregaAtual = selecionado?.takeIf { modoMotorista && it.emOperacao }
+                entregaAtual = selecionado?.takeIf { modoMotorista && it.emEntrega }
                     ?.let { PontoRota.Fixo(it.viagem.destino, it.viagem.clienteNome) },
                 onEscolher = { campo, ponto ->
                     definirPonto(campo, ponto)

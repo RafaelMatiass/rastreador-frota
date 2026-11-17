@@ -48,6 +48,8 @@ import br.com.rastreadorfrota.data.local.AppDatabase
 import br.com.rastreadorfrota.ui.screens.AlertasScreen
 import br.com.rastreadorfrota.ui.screens.CadastroUsuarioScreen
 import br.com.rastreadorfrota.ui.screens.CercaEditorScreen
+import br.com.rastreadorfrota.ui.screens.EntregaEditorScreen
+import br.com.rastreadorfrota.ui.screens.HistoricoEntregaScreen
 import br.com.rastreadorfrota.ui.screens.EquipeScreen
 import br.com.rastreadorfrota.ui.screens.FrotaScreen
 import br.com.rastreadorfrota.ui.screens.InicioGestorScreen
@@ -305,6 +307,42 @@ fun AppNavGraph(
                     onVerNoMapa = { placa ->
                         PedidosNavegacao.pedirMapa(PedidoMapa(placa = placa))
                         navController.popBackStack()
+                        irParaAba(Rotas.MAPA)
+                    },
+                    onNovaEntrega = { navController.navigate(Rotas.entregaNova(it)) },
+                    onAbrirEntrega = { navController.navigate(Rotas.entrega(it)) }
+                )
+            }
+            composable(
+                Rotas.ENTREGA_NOVA,
+                arguments = listOf(navArgument("veiculoId") { type = NavType.LongType }),
+                enterTransition = { slideEntrada() },
+                popExitTransition = { slideSaida() }
+            ) { e ->
+                EntregaEditorScreen(
+                    veiculoId = e.arguments?.getLong("veiculoId") ?: 0L,
+                    onBack = { navController.popBackStack() },
+                    // Criou: troca o editor pelo histórico da entrega (voltar leva à ficha do veículo).
+                    onCriada = { id ->
+                        navController.navigate(Rotas.entrega(id)) {
+                            popUpTo(Rotas.ENTREGA_NOVA) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(
+                Rotas.ENTREGA,
+                arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                enterTransition = { slideEntrada() },
+                popExitTransition = { slideSaida() }
+            ) { e ->
+                HistoricoEntregaScreen(
+                    entregaId = e.arguments?.getLong("id") ?: 0L,
+                    usuario = usuario,
+                    onBack = { navController.popBackStack() },
+                    onVerNoMapa = { placa ->
+                        PedidosNavegacao.pedirMapa(PedidoMapa(placa = placa))
+                        navController.popBackStack(Rotas.VEICULO_DETALHE, inclusive = true)
                         irParaAba(Rotas.MAPA)
                     }
                 )

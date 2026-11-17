@@ -58,6 +58,8 @@ object NotificacaoAlertas {
         val titulo = when (alerta.tipoEnum) {
             TipoAlerta.ENTRADA -> "Chegada · ${alerta.cercaNome}"
             TipoAlerta.SAIDA -> "Saída · ${alerta.cercaNome}"
+            TipoAlerta.DESVIO -> "Desvio de rota · ${alerta.placa}"
+            TipoAlerta.RETORNO_ROTA -> "De volta à rota · ${alerta.placa}"
         }
         val quem = alerta.motoristaNome?.let { " (${it.substringBefore(" ")})" }.orEmpty()
         val texto = "${alerta.placa}$quem ${alerta.tipoEnum.verbo} ${alerta.cercaNome} às $hora" +

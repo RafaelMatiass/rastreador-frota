@@ -8,6 +8,8 @@ A entrega tem duas partes, que se completam:
 1. **Viagens da frota pelas ruas.** Cada veículo faz uma viagem com destino: sai do centro de distribuição (CD), vai até um endereço de entrega **pelas ruas**, entrega, volta e descarrega. O mapa mostra a linha do trajeto que falta, e ela encolhe conforme o veículo chega. O controlador vê para onde cada veículo vai e em quanto tempo chega. O motorista vê a rota do próprio veículo, como no Maps.
 2. **Rota sob demanda (texto literal da entrega).** Rota da localização atual do aparelho até um veículo da frota ou até um destino de entrega escolhido no mapa.
 
+> **Atualização (17/11/2026):** as 4 viagens fixas (`TrajetosRuas.kt`) foram substituídas por **entregas atribuídas pelo gestor**, com detecção de desvio de rota e histórico. Veja [`entregas-desvio-historico.md`](entregas-desvio-historico.md). A técnica descrita aqui (trajeto do OSRM amostrado sobre as ruas) continua a mesma.
+
 ## 1. O que foi feito
 
 ### PoC (feita antes de integrar)

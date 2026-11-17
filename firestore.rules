@@ -73,6 +73,13 @@ service cloud.firestore {
       allow write: if ehControlador();
     }
 
+    // Entregas: o gestor atribui (com a rota planejada) e cancela; todos leem, porque o
+    // aparelho do motorista simula a viagem do veículo dele a partir da entrega.
+    match /entregas/{id} {
+      allow read: if logado();
+      allow write: if ehControlador();
+    }
+
     // Alertas vindos do GPS real do motorista: ele cria os dele; o gestor lê todos.
     match /alertas/{id} {
       allow create, update: if logado() && request.resource.data.uid == request.auth.uid;

@@ -452,8 +452,15 @@ fun LinhaDado(rotulo: String, valor: String, modifier: Modifier = Modifier) {
             .padding(vertical = 6.dp)
             .semantics(mergeDescendants = true) {}
     ) {
-        Text(rotulo, style = MaterialTheme.typography.bodyMedium, color = TrakSyncTheme.colors.textSecondary, modifier = Modifier.weight(1f))
-        Text(valor, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.End)
+        // Rótulo (curto) no tamanho do texto; o valor ocupa o resto, à direita, e quebra linha se for longo.
+        Text(rotulo, style = MaterialTheme.typography.bodyMedium, color = TrakSyncTheme.colors.textSecondary)
+        Text(
+            valor,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End,
+            modifier = Modifier.padding(start = 12.dp).weight(1f)
+        )
     }
 }
 

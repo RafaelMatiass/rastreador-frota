@@ -20,6 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddLocationAlt
+import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
@@ -82,6 +84,8 @@ import br.com.rastreadorfrota.ui.components.textoViagem
 import br.com.rastreadorfrota.ui.components.tipoVeiculo
 import br.com.rastreadorfrota.ui.theme.Espaco
 import br.com.rastreadorfrota.ui.theme.TrakSyncTheme
+import br.com.rastreadorfrota.data.local.entity.EntregaEntity
+import br.com.rastreadorfrota.ui.viewmodel.EntregaViewModel
 import br.com.rastreadorfrota.ui.viewmodel.VeiculoViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -96,12 +100,17 @@ fun VeiculoDetalheScreen(
     onBack: () -> Unit,
     onEditar: (Long) -> Unit,
     onVerNoMapa: (String) -> Unit,
-    viewModel: VeiculoViewModel = viewModel()
+    onNovaEntrega: (Long) -> Unit,
+    onAbrirEntrega: (Long) -> Unit,
+    viewModel: VeiculoViewModel = viewModel(),
+    entregaViewModel: EntregaViewModel = viewModel()
 ) {
     val veiculo by remember(veiculoId) { viewModel.observar(veiculoId) }.collectAsStateWithLifecycle(initialValue = null)
     val motoristas by viewModel.motoristas.collectAsStateWithLifecycle()
     val frota by remember { viewModel.frotaAoVivo(modoMotorista = false) }.collectAsStateWithLifecycle(initialValue = emptyList())
     val ehGestor = usuario?.perfil == Perfil.CONTROLADOR
+    val entregas by remember(veiculo?.placa) { entregaViewModel.doVeiculo(veiculo?.placa.orEmpty()) }
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     var menu by remember { mutableStateOf(false) }
     var confirmarExclusao by remember { mutableStateOf(false) }
     var escolherMotorista by remember { mutableStateOf(false) }
@@ -216,7 +225,7 @@ fun VeiculoDetalheScreen(
                                 Spacer(Modifier.weight(1f))
                                 BotaoSecundario("Ver no mapa", Icons.Filled.Map, { onVerNoMapa(v.placa) })
                             }
-                            if (aoVivo.emOperacao) {
+                            if (aoVivo.emEntrega) {
                                 Spacer(Modifier.height(Espaco.md))
                                 StepperViagem(aoVivo.viagem.etapa)
                             }
@@ -262,6 +271,14 @@ fun VeiculoDetalheScreen(
                         )
                     }
                 }
+
+                SecaoEntregas(
+                    entregas = entregas,
+                    podeAtribuir = ehGestor && v.operacional,
+                    temMotorista = motorista != null,
+                    onNova = { onNovaEntrega(v.id) },
+                    onAbrir = onAbrirEntrega
+                )
 
                 SecaoTitulo("Dados")
                 CardTrak(Modifier.fillMaxWidth()) {
@@ -401,6 +418,78 @@ private fun OpcaoMotorista(nome: String, detalhe: String?, selecionado: Boolean,
         Column(Modifier.weight(1f)) {
             Text(nome, style = MaterialTheme.typography.bodyLarge)
             if (detalhe != null) Text(detalhe, style = MaterialTheme.typography.bodySmall, color = TrakSyncTheme.colors.textSecondary)
+        }
+    }
+}
+
+/**
+ * Entregas do veículo: a atual (ou o botão para atribuir uma) e o histórico.
+ * Só o gestor atribui; o motorista vê o histórico do veículo dele.
+ */
+@Composable
+private fun SecaoEntregas(
+    entregas: List<EntregaEntity>,
+    podeAtribuir: Boolean,
+    temMotorista: Boolean,
+    onNova: () -> Unit,
+    onAbrir: (Long) -> Unit
+) {
+    val agora = System.currentTimeMillis()
+    val naFila = entregas.count { it.ativa(agora) }
+    SecaoTitulo("Entregas")
+    if (podeAtribuir) {
+        CardTrak(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(Espaco.lg)) {
+                Text(
+                    when {
+                        !temMotorista -> "Atribua um motorista para poder enviar o veículo numa entrega."
+                        naFila == 0 -> "Sem entrega agora: o veículo espera no pátio do CD."
+                        else -> "$naFila entrega(s) em andamento ou na fila. Uma nova entra no fim da fila e sai do último cliente."
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                BotaoPrincipal(
+                    if (naFila == 0) "Atribuir entrega" else "Adicionar à fila",
+                    onNova,
+                    Modifier.fillMaxWidth().padding(top = Espaco.md),
+                    icone = Icons.Filled.AddLocationAlt,
+                    enabled = temMotorista
+                )
+            }
+        }
+    }
+    if (entregas.isEmpty()) {
+        if (!podeAtribuir) Text("Nenhuma entrega registrada.", style = MaterialTheme.typography.bodyMedium, color = TrakSyncTheme.colors.textSecondary)
+        return
+    }
+    CardTrak(Modifier.fillMaxWidth()) {
+        Column {
+            entregas.take(20).forEachIndexed { i, e ->
+                if (i > 0) HorizontalDivider(color = TrakSyncTheme.colors.surface2)
+                val situacao = e.situacao(agora)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clickable { onAbrir(e.id) }
+                        .padding(horizontal = Espaco.lg, vertical = Espaco.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(e.clienteNome, style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            data(e.inicioEm) + if (e.comDesvio) " · com desvio" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TrakSyncTheme.colors.textSecondary
+                        )
+                    }
+                    if (e.comDesvio) {
+                        Icon(Icons.Filled.AltRoute, contentDescription = "Com desvio de rota", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(Espaco.sm))
+                    }
+                    StatusPill(situacao.label, corDaSituacaoEntrega(situacao), iconeDaSituacaoEntrega(situacao))
+                }
+            }
         }
     }
 }

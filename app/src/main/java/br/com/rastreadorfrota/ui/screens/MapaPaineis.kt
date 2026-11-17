@@ -139,7 +139,7 @@ fun PainelVeiculo(
 
         EnderecoAtual(enderecos)
 
-        if (item.emOperacao) {
+        if (item.emEntrega) {
             Spacer(Modifier.height(Espaco.md))
             StepperViagem(item.viagem.etapa)
         }

@@ -23,6 +23,10 @@ A senha é enviada à parte pela equipe, e não fica no repositório. Também é
 ## 3. O que testar
 
 ### Gestor
+- **Entregas:** em **Frota** → veículo (com motorista) → **Atribuir entrega**, escolher o endereço e o cliente. O veículo sai do CD e segue a rota pelas ruas. Sem entrega, ele fica no pátio ("Aguardando entrega").
+- **Fila:** com uma entrega em andamento, **Adicionar à fila** cria outra que sai do cliente anterior, sem passar pelo CD. Cancelar uma entrega não cancela as seguintes: o veículo segue para a próxima.
+- **Desvio de rota:** atribuir uma entrega com **Simular desvio de rota** ligado. No meio da ida chegam os alertas "Desvio de rota" e "De volta à rota", e a linha do veículo fica vermelha no mapa.
+- **Histórico:** na ficha do veículo, seção **Entregas**, tocar numa entrega. A tela mostra a rota planejada (tracejada), o percorrido (azul), os desvios (vermelho) e os horários. Dá para cancelar uma entrega em andamento.
 - **Mapa da frota:** veículos em trânsito (verde), parados (âmbar) e sem motorista (cinza), filtros e trajeto até o cliente.
 - **Telemetria:** ao tocar num veículo, ver velocidade, motor, portas e o **endereço atual** (reverse geocoding).
 - **Rotas:** "Traçar rota" até um veículo ou, com toque longo no mapa, até um destino. Mostra distância, tempo e passo a passo.
@@ -52,7 +56,8 @@ Os pedidos são respondidos até 02/12 (Entrega 9). A equipe pode recusar uma me
 
 ## 5. Limitações conhecidas (não são bugs)
 
-- **As posições e a telemetria dos veículos são simuladas,** como pede o manual. Os veículos seguem 4 viagens fixas (CD → cliente → CD).
+- **As posições e a telemetria dos veículos são simuladas,** como pede o manual. O veículo só se move quando o gestor atribui uma entrega (CD → cliente → CD, pela rota do OSRM).
+- **Atribuir uma entrega exige internet,** porque a rota é gerada nessa hora. Depois, a viagem é simulada sem rede.
 - **As fotos ficam só no aparelho em que foram tiradas** (decisão da Entrega 4, sem Firebase Storage).
 - **O endereço de um veículo em movimento é atualizado no máximo a cada 15 s,** para respeitar a cota da API.
 - **Os alertas de cercas simuladas aparecem enquanto o app do gestor está aberto.** Os alertas do GPS real do motorista funcionam com o app fechado.

@@ -5,7 +5,10 @@ import androidx.room.PrimaryKey
 
 enum class TipoAlerta(val verbo: String) {
     ENTRADA("entrou em"),
-    SAIDA("saiu de")
+    SAIDA("saiu de"),
+    /** Desvio de rota: [AlertaEntity.cercaNome] guarda "rota para <cliente>". */
+    DESVIO("saiu da"),
+    RETORNO_ROTA("voltou à")
 }
 
 /** De onde veio o alerta: da posição simulada do veículo ou do GPS real do aparelho do motorista. */
@@ -36,6 +39,8 @@ data class AlertaEntity(
     val tipoEnum: TipoAlerta get() = TipoAlerta.entries.find { it.name == tipo } ?: TipoAlerta.ENTRADA
     val origemEnum: OrigemAlerta get() = OrigemAlerta.entries.find { it.name == origem } ?: OrigemAlerta.SIMULADO
 
-    /** "ABC1D23 entrou em Supermercado Central" */
+    val ehDesvio: Boolean get() = tipoEnum == TipoAlerta.DESVIO || tipoEnum == TipoAlerta.RETORNO_ROTA
+
+    /** "ABC1D23 entrou em Supermercado Central", "ABC1D23 saiu da rota para Supermercado Central" */
     val descricao: String get() = "$placa ${tipoEnum.verbo} $cercaNome"
 }

@@ -78,7 +78,7 @@ object SyncEngine {
         app = application
         escopo = scope
         val db = AppDatabase.getInstance(application)
-        syncManager = FirestoreSyncManager(db.veiculoDao(), db.motoristaDao(), db.cercaDao(), db.alertaDao()).apply {
+        syncManager = FirestoreSyncManager(db.veiculoDao(), db.motoristaDao(), db.cercaDao(), db.alertaDao(), db.entregaDao()).apply {
             // Alerta do GPS de um motorista chegou pela nuvem: o gestor é avisado.
             aoReceberAlerta = { NotificacaoAlertas.notificar(app, it) }
         }

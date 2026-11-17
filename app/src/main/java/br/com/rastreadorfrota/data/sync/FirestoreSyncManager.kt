@@ -6,10 +6,12 @@ import br.com.rastreadorfrota.auth.Perfil
 import br.com.rastreadorfrota.auth.Usuario
 import br.com.rastreadorfrota.data.local.dao.AlertaDao
 import br.com.rastreadorfrota.data.local.dao.CercaDao
+import br.com.rastreadorfrota.data.local.dao.EntregaDao
 import br.com.rastreadorfrota.data.local.dao.MotoristaDao
 import br.com.rastreadorfrota.data.local.dao.VeiculoDao
 import br.com.rastreadorfrota.data.local.entity.AlertaEntity
 import br.com.rastreadorfrota.data.local.entity.CercaEntity
+import br.com.rastreadorfrota.data.local.entity.EntregaEntity
 import br.com.rastreadorfrota.data.local.entity.MotoristaEntity
 import br.com.rastreadorfrota.data.local.entity.SituacaoVeiculo
 import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
@@ -45,12 +47,14 @@ class FirestoreSyncManager(
     private val motoristaDao: MotoristaDao,
     private val cercaDao: CercaDao,
     private val alertaDao: AlertaDao,
+    private val entregaDao: EntregaDao,
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     private val colecaoVeiculos = firestore.collection("veiculos")
     private val colecaoUsuarios = firestore.collection("usuarios")
     private val colecaoCercas = firestore.collection("cercas")
     private val colecaoAlertas = firestore.collection("alertas")
+    private val colecaoEntregas = firestore.collection("entregas")
 
     /** Chamado para cada alerta novo vindo do aparelho de um motorista (o gestor é notificado). */
     var aoReceberAlerta: ((AlertaEntity) -> Unit)? = null
@@ -64,8 +68,9 @@ class FirestoreSyncManager(
     suspend fun sincronizarTudo(perfil: Perfil): ResultadoSincronizacao {
         var resultado = sincronizarVeiculos()
         resultado += when (perfil) {
-            Perfil.CONTROLADOR -> sincronizarMotoristas() + sincronizarCercas(enviar = true) + receberAlertas()
-            Perfil.MOTORISTA -> sincronizarCercas(enviar = false) + enviarAlertas()
+            Perfil.CONTROLADOR -> sincronizarMotoristas() + sincronizarCercas(enviar = true) +
+                sincronizarEntregas(enviar = true) + receberAlertas()
+            Perfil.MOTORISTA -> sincronizarCercas(enviar = false) + sincronizarEntregas(enviar = false) + enviarAlertas()
         }
         return resultado
     }
@@ -333,6 +338,110 @@ class FirestoreSyncManager(
                 recebidos++
             } else if (local.sincronizado && updatedAtRemoto > local.updatedAt) {
                 cercaDao.atualizar(remota.copy(id = local.id))
+                recebidos++
+            }
+        }
+        return ResultadoSincronizacao(enviados, recebidos, 0, log)
+    }
+
+    // ---------------- ENTREGAS ----------------
+    // O gestor cria e cancela; o motorista só recebe (para ver a viagem do veículo dele).
+    // As rotas vão junto, como polyline codificada: assim todos os aparelhos simulam igual.
+
+    suspend fun sincronizarEntregas(enviar: Boolean): ResultadoSincronizacao {
+        val log = mutableListOf<String>()
+        var enviados = 0
+        var recebidos = 0
+
+        if (enviar) {
+            val pendentes = entregaDao.listarPendentes()
+            log.add("[Entregas] Push: ${pendentes.size} pendente(s).")
+            for (e in pendentes) {
+                if (e.deletedLocally) {
+                    e.remoteId?.let {
+                        colecaoEntregas.document(it)
+                            .set(mapOf(CAMPO_REMOVIDO to true, CAMPO_UPDATED_AT to e.updatedAt), SetOptions.merge())
+                            .await()
+                    }
+                    entregaDao.excluirDefinitivo(e.id)
+                    enviados++
+                    continue
+                }
+                val dados = mapOf(
+                    "placa" to e.placa,
+                    "clienteNome" to e.clienteNome,
+                    "endereco" to e.endereco,
+                    "latitude" to e.latitude,
+                    "longitude" to e.longitude,
+                    "rotaIda" to e.rotaIda,
+                    "rotaVolta" to e.rotaVolta,
+                    "rotaIdaExecutada" to e.rotaIdaExecutada,
+                    "kmhIda" to e.kmhIda,
+                    "kmhVolta" to e.kmhVolta,
+                    "comDesvio" to e.comDesvio,
+                    "origemNome" to e.origemNome,
+                    "inicioEm" to e.inicioEm,
+                    "fimPrevistoEm" to e.fimPrevistoEm,
+                    "canceladaEm" to e.canceladaEm,
+                    "motoristaNome" to e.motoristaNome,
+                    "criadaPorUid" to e.criadaPorUid,
+                    "criadaEm" to e.criadaEm,
+                    CAMPO_UPDATED_AT to e.updatedAt,
+                    CAMPO_REMOVIDO to false
+                )
+                if (e.remoteId == null) {
+                    val ref = colecaoEntregas.add(dados).await()
+                    entregaDao.atualizar(e.copy(remoteId = ref.id, sincronizado = true))
+                } else {
+                    colecaoEntregas.document(e.remoteId).set(dados, SetOptions.merge()).await()
+                    entregaDao.atualizar(e.copy(sincronizado = true))
+                }
+                log.add("  → Entrega para '${e.clienteNome}' (${e.placa}) enviada.")
+                enviados++
+            }
+        }
+
+        val snapshot = colecaoEntregas.get().await()
+        log.add("[Entregas] Pull: ${snapshot.size()} entrega(s) na nuvem.")
+        for (doc in snapshot.documents) {
+            val local = entregaDao.buscarPorRemoteId(doc.id)
+            val updatedAtRemoto = doc.getLong(CAMPO_UPDATED_AT) ?: 0L
+            if (doc.getBoolean(CAMPO_REMOVIDO) == true) {
+                if (local != null && local.sincronizado) {
+                    entregaDao.excluirDefinitivo(local.id)
+                    recebidos++
+                }
+                continue
+            }
+            val remota = EntregaEntity(
+                placa = doc.getString("placa") ?: continue,
+                clienteNome = doc.getString("clienteNome") ?: continue,
+                endereco = doc.getString("endereco") ?: "",
+                latitude = doc.getDouble("latitude") ?: continue,
+                longitude = doc.getDouble("longitude") ?: continue,
+                rotaIda = doc.getString("rotaIda") ?: continue,
+                rotaVolta = doc.getString("rotaVolta") ?: continue,
+                rotaIdaExecutada = doc.getString("rotaIdaExecutada") ?: doc.getString("rotaIda") ?: continue,
+                kmhIda = doc.getLong("kmhIda")?.toInt() ?: 40,
+                kmhVolta = doc.getLong("kmhVolta")?.toInt() ?: 40,
+                comDesvio = doc.getBoolean("comDesvio") ?: false,
+                origemNome = doc.getString("origemNome") ?: "CD Morada do Sol",
+                inicioEm = doc.getLong("inicioEm") ?: continue,
+                fimPrevistoEm = doc.getLong("fimPrevistoEm") ?: continue,
+                canceladaEm = doc.getLong("canceladaEm"),
+                motoristaNome = doc.getString("motoristaNome"),
+                criadaPorUid = doc.getString("criadaPorUid"),
+                criadaEm = doc.getLong("criadaEm") ?: updatedAtRemoto,
+                remoteId = doc.id,
+                updatedAt = updatedAtRemoto,
+                sincronizado = true
+            )
+            if (local == null) {
+                entregaDao.inserir(remota)
+                log.add("  ← Entrega para '${remota.clienteNome}' (${remota.placa}) recebida.")
+                recebidos++
+            } else if (local.sincronizado && updatedAtRemoto > local.updatedAt) {
+                entregaDao.atualizar(remota.copy(id = local.id))
                 recebidos++
             }
         }

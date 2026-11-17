@@ -35,7 +35,7 @@ _**IFSP Araraquara**_
 
 O **TrakSync** ("Cada veículo. Uma visão.") é a gestão de frota para **distribuidoras regionais de alimentos e bebidas**: um centro de distribuição e caminhões, furgões e vans entregando para mercados e restaurantes. A empresa demo é a fictícia *Distribuidora Morada do Sol*, em Araraquara.
 
-- **Gestor de frota** (perfil Controlador), no escritório: dashboard da operação, aprova os veículos cadastrados pelos motoristas, atribui motorista ↔ veículo (um para um), cria cercas e recebe alertas de entrada e saída.
+- **Gestor de frota** (perfil Controlador), no escritório: dashboard da operação, aprova os veículos cadastrados pelos motoristas, atribui motorista ↔ veículo (um para um), **atribui entregas** (o veículo só sai do CD com uma entrega), cria cercas, recebe alertas de entrada e saída e de **desvio de rota**, e consulta o **histórico de trajeto** de cada entrega.
 - **Motorista**, na rua: vê o veículo do turno, faz a vistoria com foto e km, navega até a entrega (no app, no Waze ou no Google Maps) e tem as chegadas e saídas registradas pelo GPS.
 
 O projeto segue o cronograma da disciplina, com **entregas quinzenais** e a exigência de **PoCs (Provas de Conceito)** isoladas, demonstrando o uso individual de cada tecnologia estudada no semestre.
@@ -91,6 +91,22 @@ pocs/
 ## ✅ Progresso do Projeto
 
 <details open>
+<summary>🧭 <b>Antes do code freeze — Entregas, desvio de rota e histórico</b></summary>
+
+<br>
+
+- [x] Gestor atribui entregas: destino por busca de endereço ou no mapa; rota gerada uma vez no OSRM e sincronizada (`entregas` no Firestore)
+- [x] As viagens fixas foram removidas: sem entrega o veículo fica no pátio do CD ("Aguardando entrega")
+- [x] Detecção de desvio: distância até a rota planejada acima de 60 m gera "saiu da rota" / "voltou à rota" (alerta + notificação + "Precisa de atenção")
+- [x] Fila de entregas: a próxima sai do cliente anterior (só a última volta ao CD); cancelar uma entrega replaneja a fila e o veículo segue para a próxima
+- [x] Histórico de trajeto por entrega: rota planejada, percorrido, trechos fora da rota e linha do tempo; cancelamento pelo gestor
+- [x] Banco local v6 com migração sem perda de dados; testes unitários da simulação e do desvio
+
+Detalhes e roteiro de teste: [`docs/entregas-desvio-historico.md`](docs/entregas-desvio-historico.md)
+
+</details>
+
+<details>
 <summary>🛰️ <b>Entrega 8 / Semana 17 — Geofencing e versão 1.0</b></summary>
 
 <br>

@@ -54,11 +54,16 @@ object RotaService {
     private const val BASE = "https://router.project-osrm.org/route/v1/driving"
 
     suspend fun calcular(origem: GeoPoint, destino: GeoPoint, userAgent: String): Rota =
+        calcularPor(listOf(origem, destino), userAgent)
+
+    /**
+     * Rota passando por todos os [pontos], em ordem. Um ponto intermediário fora do caminho
+     * obriga a rota a desviar: é assim que a entrega "com desvio" ganha um trajeto diferente do planejado.
+     */
+    suspend fun calcularPor(pontos: List<GeoPoint>, userAgent: String): Rota =
         withContext(Dispatchers.IO) {
-            val url = URL(
-                "$BASE/${origem.longitude},${origem.latitude};${destino.longitude},${destino.latitude}" +
-                    "?overview=full&geometries=geojson&steps=true"
-            )
+            val coordenadas = pontos.joinToString(";") { "${it.longitude},${it.latitude}" }
+            val url = URL("$BASE/$coordenadas?overview=full&geometries=geojson&steps=true")
             val conexao = url.openConnection() as HttpURLConnection
             conexao.connectTimeout = 10_000
             conexao.readTimeout = 15_000

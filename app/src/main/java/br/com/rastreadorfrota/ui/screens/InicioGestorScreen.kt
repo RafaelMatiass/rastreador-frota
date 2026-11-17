@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassTop
@@ -266,7 +267,7 @@ fun InicioGestorScreen(
                             FatiaGrafico("Ida", e.contar(EtapaViagem.IDA), TrakSyncTheme.colors.success),
                             FatiaGrafico("Entrega", e.contar(EtapaViagem.ENTREGA), MaterialTheme.colorScheme.error),
                             FatiaGrafico("Volta", e.contar(EtapaViagem.VOLTA), MaterialTheme.colorScheme.primary),
-                            FatiaGrafico("No CD", e.contar(EtapaViagem.DESCARGA) + e.contar(EtapaViagem.FORA_DE_OPERACAO), TrakSyncTheme.colors.textSecondary)
+                            FatiaGrafico("No CD", e.contar(EtapaViagem.DESCARGA) + e.contar(EtapaViagem.AGUARDANDO_ENTREGA) + e.contar(EtapaViagem.FORA_DE_OPERACAO), TrakSyncTheme.colors.textSecondary)
                         ),
                         Modifier.padding(Espaco.lg)
                     )
@@ -396,6 +397,7 @@ private fun iconeAtencao(tipo: TipoAtencao): Pair<ImageVector, Color> = when (ti
     TipoAtencao.CNH_VENCENDO -> Icons.Filled.Badge to TrakSyncTheme.colors.warning
     TipoAtencao.PORTA_ABERTA -> Icons.Filled.SensorDoor to MaterialTheme.colorScheme.error
     TipoAtencao.VELOCIDADE -> Icons.Filled.Speed to MaterialTheme.colorScheme.error
+    TipoAtencao.FORA_DA_ROTA -> Icons.Filled.AltRoute to MaterialTheme.colorScheme.error
     TipoAtencao.SEM_MOTORISTA -> StatusVeiculo.SEM_MOTORISTA.icone to TrakSyncTheme.colors.textSecondary
     TipoAtencao.MOTORISTA_SEM_VEICULO -> Icons.Filled.PersonOff to TrakSyncTheme.colors.textSecondary
 }
@@ -403,8 +405,12 @@ private fun iconeAtencao(tipo: TipoAtencao): Pair<ImageVector, Color> = when (ti
 /** Linha de alerta usada no dashboard e no Início do motorista. */
 @Composable
 fun LinhaAlertaCompacta(alerta: AlertaEntity, onClick: (() -> Unit)? = null) {
-    val entrada = alerta.tipoEnum == TipoAlerta.ENTRADA
-    val cor = if (entrada) TrakSyncTheme.colors.success else TrakSyncTheme.colors.warning
+    val entrada = alerta.tipoEnum == TipoAlerta.ENTRADA || alerta.tipoEnum == TipoAlerta.RETORNO_ROTA
+    val cor = when (alerta.tipoEnum) {
+        TipoAlerta.DESVIO -> MaterialTheme.colorScheme.error
+        TipoAlerta.ENTRADA, TipoAlerta.RETORNO_ROTA -> TrakSyncTheme.colors.success
+        TipoAlerta.SAIDA -> TrakSyncTheme.colors.warning
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -415,7 +421,11 @@ fun LinhaAlertaCompacta(alerta: AlertaEntity, onClick: (() -> Unit)? = null) {
     ) {
         Box(Modifier.size(36.dp).background(cor.copy(alpha = 0.14f), CircleShape), contentAlignment = Alignment.Center) {
             Icon(
-                if (entrada) Icons.AutoMirrored.Filled.Login else Icons.AutoMirrored.Filled.Logout,
+                when {
+                    alerta.ehDesvio -> Icons.Filled.AltRoute
+                    entrada -> Icons.AutoMirrored.Filled.Login
+                    else -> Icons.AutoMirrored.Filled.Logout
+                },
                 contentDescription = null,
                 tint = cor,
                 modifier = Modifier.size(18.dp)

@@ -58,10 +58,11 @@ fun textoViagem(v: SituacaoViagem, curto: Boolean = false): String {
     val tempo = formatarDuracao(v.segundosRestantes.toDouble())
     val distancia = if (curto) "" else " · faltam ${formatarDistancia(v.metrosRestantes)}"
     return when (v.etapa) {
-        EtapaViagem.IDA -> "A caminho de ${v.clienteNome}$distancia · $tempo"
+        EtapaViagem.IDA -> (if (v.foraDaRota) "FORA DA ROTA · " else "") + "A caminho de ${v.clienteNome}$distancia · $tempo"
         EtapaViagem.ENTREGA -> "Entregando em ${v.clienteNome} · sai em $tempo"
         EtapaViagem.VOLTA -> "Voltando ao CD$distancia · $tempo"
         EtapaViagem.DESCARGA -> "Descarregando no CD · sai em $tempo"
+        EtapaViagem.AGUARDANDO_ENTREGA -> "Aguardando entrega · parado no CD"
         EtapaViagem.FORA_DE_OPERACAO -> "Sem motorista · parado no CD"
     }
 }
@@ -80,5 +81,5 @@ val EtapaViagem.rotuloCurto: String
         EtapaViagem.ENTREGA -> "Entrega"
         EtapaViagem.VOLTA -> "Volta"
         EtapaViagem.DESCARGA -> "Descarga"
-        EtapaViagem.FORA_DE_OPERACAO -> "No pátio"
+        EtapaViagem.AGUARDANDO_ENTREGA, EtapaViagem.FORA_DE_OPERACAO -> "No pátio"
     }

@@ -43,10 +43,14 @@ object Rotas {
     const val VEICULO_FORM = "veiculo_form?id={id}"
     const val VEICULO_DETALHE = "veiculo/{id}"
     const val CERCA_EDITOR = "cerca?id={id}"
+    const val ENTREGA_NOVA = "entrega_nova/{veiculoId}"
+    const val ENTREGA = "entrega/{id}"
 
     fun veiculoForm(id: Long? = null) = "veiculo_form" + (id?.let { "?id=$it" } ?: "")
     fun veiculoDetalhe(id: Long) = "veiculo/$id"
     fun cercaEditor(id: Long? = null) = "cerca" + (id?.let { "?id=$it" } ?: "")
+    fun entregaNova(veiculoId: Long) = "entrega_nova/$veiculoId"
+    fun entrega(id: Long) = "entrega/$id"
 
     fun inicioDo(perfil: Perfil) = when (perfil) {
         Perfil.CONTROLADOR -> INICIO_GESTOR

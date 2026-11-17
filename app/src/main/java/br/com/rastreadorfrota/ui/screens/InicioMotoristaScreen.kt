@@ -111,7 +111,7 @@ fun InicioMotoristaScreen(
     // Endereço da entrega atual (uma consulta por destino, com cache no serviço).
     var enderecoEntrega by remember { mutableStateOf<Endereco?>(null) }
     LaunchedEffect(aoVivo?.viagem?.destino) {
-        val destino = aoVivo?.takeIf { it.emOperacao }?.viagem?.destino ?: return@LaunchedEffect
+        val destino = aoVivo?.takeIf { it.emEntrega }?.viagem?.destino ?: return@LaunchedEffect
         enderecoEntrega = runCatching { GeocodingService.endereco(destino) }.getOrNull()
     }
 
@@ -171,7 +171,27 @@ fun InicioMotoristaScreen(
             }
         }
 
-        if (aoVivo != null && aoVivo.emOperacao) {
+        if (aoVivo != null && aoVivo.emOperacao && !aoVivo.emEntrega) {
+            item {
+                SecaoTitulo("Viagem atual", Modifier.padding(horizontal = Espaco.tela))
+                CardTrak(Modifier.padding(horizontal = Espaco.tela).fillMaxWidth()) {
+                    Row(Modifier.padding(Espaco.lg), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Storefront, contentDescription = null, tint = TrakSyncTheme.colors.textSecondary)
+                        Spacer(Modifier.width(Espaco.md))
+                        Column {
+                            Text("Aguardando entrega", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "O gestor ainda não atribuiu uma entrega ao seu veículo. Ele fica no pátio do CD até lá.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TrakSyncTheme.colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (aoVivo != null && aoVivo.emEntrega) {
             item {
                 SecaoTitulo("Viagem atual", Modifier.padding(horizontal = Espaco.tela))
                 CardTrak(Modifier.padding(horizontal = Espaco.tela).fillMaxWidth()) {
