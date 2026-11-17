@@ -33,7 +33,7 @@ A senha é enviada à parte pela equipe, e não fica no repositório. Também é
 - **Cadastrar o veículo com foto** (câmera ou galeria). Ele fica pendente até o gestor aprovar.
 - Ver **o próprio veículo no mapa** e traçar rota.
 - **Cercas pelo GPS real:** permitir a localização "o tempo todo". Ao entrar ou sair de uma cerca, o alerta é registrado e chega ao gestor na sincronização.
-  - No emulador: *Extended Controls → Location*, coloque um ponto dentro da cerca e depois fora.
+  - **De preferência num celular físico.** No emulador, o Google Play Services nem sempre dispara as transições de cerca. Se for testar nele: *Extended Controls → Location*, coloque um ponto dentro da cerca e depois fora, com o **Google Maps aberto** (ele mantém o GPS ativo). Pode levar alguns minutos.
 
 ### Offline
 - Desligue a internet, cadastre ou edite algo e religue. Os dados ficam salvos no aparelho e sobem sozinhos para a nuvem.
