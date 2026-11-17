@@ -227,7 +227,7 @@ fun VeiculoDetalheScreen(
                             }
                             if (aoVivo.emEntrega) {
                                 Spacer(Modifier.height(Espaco.md))
-                                StepperViagem(aoVivo.viagem.etapa)
+                                StepperViagem(aoVivo.viagem.etapa, entregaCancelada = aoVivo.entrega?.canceladaEm != null)
                             }
                             Text(textoViagem(aoVivo.viagem), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = Espaco.md))
                             Row(
@@ -436,6 +436,7 @@ private fun SecaoEntregas(
 ) {
     val agora = System.currentTimeMillis()
     val naFila = entregas.count { it.ativa(agora) }
+    val voltandoAposCancelar = entregas.any { it.voltandoAposCancelar(agora) }
     SecaoTitulo("Entregas")
     if (podeAtribuir) {
         CardTrak(Modifier.fillMaxWidth()) {
@@ -444,6 +445,7 @@ private fun SecaoEntregas(
                     when {
                         !temMotorista -> "Atribua um motorista para poder enviar o veículo numa entrega."
                         naFila == 0 -> "Sem entrega agora: o veículo espera no pátio do CD."
+                        voltandoAposCancelar && naFila == 1 -> "Entrega cancelada: o veículo está voltando ao CD. Uma nova entrega sai de onde ele estiver."
                         else -> "$naFila entrega(s) em andamento ou na fila. Uma nova entra no fim da fila e sai do último cliente."
                     },
                     style = MaterialTheme.typography.bodyMedium

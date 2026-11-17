@@ -19,7 +19,7 @@ import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 
 @Database(
     entities = [VeiculoEntity::class, MotoristaEntity::class, CercaEntity::class, AlertaEntity::class, EntregaEntity::class],
-    version = 7, // v6: entregas (rota planejada, desvio, histórico); v7: fila de entregas (origem)
+    version = 8, // v6: entregas (rota planejada, desvio, histórico); v7: fila (origem); v8: volta ao CD após cancelar
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "rastreadorfrota.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .fallbackToDestructiveMigration(true)
                     .build().also { INSTANCE = it }
             }
@@ -117,6 +117,13 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE entregas ADD COLUMN origemNome TEXT NOT NULL DEFAULT 'CD Morada do Sol'")
+            }
+        }
+
+        // v8: entrega cancelada no caminho guarda a rota de volta ao CD a partir do ponto do cancelamento.
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE entregas ADD COLUMN rotaRetorno TEXT")
             }
         }
     }

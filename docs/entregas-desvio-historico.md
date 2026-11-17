@@ -36,7 +36,11 @@ O cancelamento vale **só para aquela entrega**; as próximas da fila continuam,
 - **Cancelou a que estava em andamento:** a próxima sai **de onde o veículo está agora**, com uma rota nova gerada no OSRM.
 - **Cancelou uma do meio da fila:** a seguinte passa a sair do cliente anterior a ela, com rota nova, e os horários são recalculados.
 - **Cancelou a última:** a anterior recupera a volta ao CD.
-- **Sem outra entrega na fila,** o veículo volta ao pátio.
+- **Sem outra entrega na fila,** o veículo **volta ao CD a partir de onde estava** no cancelamento:
+  - indo para o cliente: o app pede ao OSRM uma rota nova, da posição atual até o CD;
+  - parado no cliente: usa a volta planejada;
+  - já voltando ao CD: segue a volta normal.
+  A rota de retorno fica na entrega (`rotaRetorno`, banco v8) e é sincronizada, então todos os aparelhos veem o mesmo caminho. No stepper, a etapa "Entrega" aparece com um X vermelho ("Cancelada").
 - **Sem internet,** quando o replanejamento precisa de uma rota nova, nada é alterado e o gestor é avisado. A fila nunca fica pela metade.
 
 ### Por que todos os aparelhos veem o mesmo
@@ -63,7 +67,7 @@ O histórico é reconstruído a partir da entrega guardada (rotas + horário de 
 
 | Arquivo | Papel |
 |---|---|
-| `data/local/entity/EntregaEntity.kt`, `dao/EntregaDao.kt` | A entrega e a situação dela (agendada, em andamento, concluída, cancelada). Banco local v6, com migração sem perda de dados. |
+| `data/local/entity/EntregaEntity.kt`, `dao/EntregaDao.kt` | A entrega e a situação dela (agendada, em andamento, concluída, cancelada). Banco local v8 (v6 cria a tabela, v7 adiciona a origem da fila, v8 a rota de retorno após cancelar), com migração sem perda de dados. |
 | `simulacao/RotasSimuladas.kt` | `montarViagem` (ida → entrega → volta → descarga) e o cálculo de "fora da rota" em cada passo. As viagens fixas e o `TrajetosRuas.kt` foram removidos. |
 | `simulacao/SimuladorFrota.kt` | `situacao(entrega, passo)`, `aguardandoEntrega`, `foraDeOperacao`. |
 | `simulacao/Trajeto.kt`, `PolylineCodec.kt` | `distanciaAoTrajeto`, `pontoDeDesvio` e `codificar` a polyline. |
@@ -86,10 +90,11 @@ O histórico é reconstruído a partir da entrega guardada (rotas + horário de 
 4. Em cerca de 2 minutos, no meio da ida, chega a notificação **"Desvio de rota · placa"** e, logo depois, **"De volta à rota · placa"**.
 5. No histórico aparecem "1 desvio(s) da rota planejada" e o trecho vermelho no mapa. No mapa da frota, a linha do veículo fica vermelha durante o desvio.
 6. **Como motorista:** o Início mostra a viagem atual. Sem entrega, mostra "Aguardando entrega".
-7. **Cancelar:** no histórico, **Cancelar entrega**. A entrega fica como "Cancelada"; se houver outra na fila, o veículo segue para ela, e se não houver, volta ao pátio.
+7. **Cancelar:** no histórico, **Cancelar entrega**. A entrega fica como "Cancelada"; se houver outra na fila, o veículo segue para ela, e se não houver, volta ao CD saindo de onde estava.
 
 Testado no emulador em 17/11/2026:
 - **Desvio:** entrega CD → Av. Barroso (12 km ida e volta), desvio detectado às 07:15:56, volta à rota às 07:16:39, 1,1 km fora da rota.
+- **Cancelar no meio da ida (sem fila):** entrega CD → Av. Barroso cancelada às 16:51:12, com 2,3 km percorridos. O caminhão fez a volta dali até o CD (chegada prevista às 16:53), e o histórico mostra "Não chegou" e "Volta prevista ao CD".
 - **Fila e cancelamento:** "Mercado A" (Av. Barroso) e "Mercado B" (Av. Queiroz Filho) na fila. A B ficou "Na fila", saindo do Mercado A às 07:35. A A foi cancelada às 07:32:18, e a B passou a "Em andamento" às 07:32, saindo da posição do veículo com rota nova.
 
 ## 4. Perguntas prováveis
@@ -100,6 +105,5 @@ Testado no emulador em 17/11/2026:
 - **"E sem internet?"** A rota é gerada na hora de atribuir, o que exige internet. Depois disso, a simulação, o desvio e o histórico funcionam offline.
 
 ## 5. Limitações
-- **Cancelar sem próxima entrega na fila é imediato:** o veículo "volta" ao pátio na hora, sem percorrer o caminho de volta.
 - **A ordem da fila é a ordem de atribuição.** Não dá para reordenar as entregas.
 - **O desvio é detectado nos veículos simulados.** Para o GPS real do motorista, seria preciso comparar a localização do aparelho com a rota no próprio celular.

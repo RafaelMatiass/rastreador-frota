@@ -141,7 +141,7 @@ fun PainelVeiculo(
 
         if (item.emEntrega) {
             Spacer(Modifier.height(Espaco.md))
-            StepperViagem(item.viagem.etapa)
+            StepperViagem(item.viagem.etapa, entregaCancelada = item.entrega?.canceladaEm != null)
         }
         Text(
             textoViagem(item.viagem),

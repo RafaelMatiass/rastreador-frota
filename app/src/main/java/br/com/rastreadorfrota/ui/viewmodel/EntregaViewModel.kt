@@ -14,7 +14,9 @@ import br.com.rastreadorfrota.data.local.entity.SituacaoEntrega
 import br.com.rastreadorfrota.simulacao.CENTRO_DISTRIBUICAO
 import br.com.rastreadorfrota.simulacao.Encadeamento
 import br.com.rastreadorfrota.simulacao.NOME_CD
+import br.com.rastreadorfrota.simulacao.EtapaViagem
 import br.com.rastreadorfrota.simulacao.encadearEntrega
+import br.com.rastreadorfrota.simulacao.passoDoCancelamento
 import br.com.rastreadorfrota.simulacao.viagemDaEntrega
 import br.com.rastreadorfrota.simulacao.LIMITE_DESVIO_M
 import br.com.rastreadorfrota.simulacao.PolylineCodec
@@ -139,7 +141,9 @@ class EntregaViewModel(app: Application) : AndroidViewModel(app) {
      * Cancela só esta entrega; as próximas da fila continuam e são replanejadas:
      * - cancelou a que estava em andamento: a próxima sai de onde o veículo está agora;
      * - cancelou uma do meio da fila: a seguinte sai do cliente da anterior a ela;
-     * - cancelou a última: a anterior volta a ter a volta ao CD.
+     * - cancelou a última: a anterior volta a ter a volta ao CD;
+     * - cancelou a que estava em andamento e não há outra na fila: o veículo volta ao CD
+     *   A PARTIR DE ONDE ESTÁ (rota nova no OSRM), em vez de aparecer no pátio na hora.
      * Quando a origem de uma entrega muda, a rota dela é gerada de novo no OSRM. Tudo é
      * calculado antes de gravar: se faltar internet, nada muda e o gestor é avisado.
      */
@@ -152,7 +156,7 @@ class EntregaViewModel(app: Application) : AndroidViewModel(app) {
                 val fila = dao.observarDoVeiculo(entrega.placa).first()
                     .filter { it.id != entrega.id && it.ativa(agora) }
                     .sortedBy { it.inicioEm }
-                var anterior = fila.firstOrNull { it.situacao(agora) == SituacaoEntrega.EM_ANDAMENTO }
+                var anterior = fila.firstOrNull { it.naRua(agora) }
                 val naFila = fila.filter { it.situacao(agora) == SituacaoEntrega.AGENDADA }
                 // Cancelou a que estava rodando: quem vem depois parte da posição atual do veículo.
                 val partidaInicial = if (anterior == null && entrega.situacao(agora) == SituacaoEntrega.EM_ANDAMENTO) {
@@ -192,7 +196,13 @@ class EntregaViewModel(app: Application) : AndroidViewModel(app) {
                     if (atual.fimPrevistoEm != completo) alteradas[ultima.id] = atual.copy(fimPrevistoEm = completo)
                 }
 
-                dao.atualizar(entrega.copy(canceladaEm = agora, updatedAt = agora, sincronizado = false))
+                // Sem próxima entrega: o veículo volta ao CD saindo de onde parou.
+                var cancelada = entrega.copy(canceladaEm = agora)
+                if (naFila.isEmpty() && anterior == null && entrega.situacao(agora) == SituacaoEntrega.EM_ANDAMENTO) {
+                    cancelada = comVoltaAoCd(cancelada, ua)
+                }
+
+                dao.atualizar(cancelada.copy(updatedAt = agora, sincronizado = false))
                 alteradas.values.forEach { dao.atualizar(it.copy(updatedAt = agora, sincronizado = false)) }
                 SyncEngine.sincronizarAgora()
             } catch (e: CancellationException) {
@@ -200,11 +210,35 @@ class EntregaViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 _avisoFila.value = when (e) {
                     is UnknownHostException, is SocketTimeoutException ->
-                        "Sem internet para replanejar a fila. A entrega não foi cancelada."
+                        "Sem internet para calcular o novo caminho do veículo. A entrega não foi cancelada."
                     else -> "Não foi possível replanejar a fila: ${e.message}"
                 }
             }
         }
+    }
+
+    /**
+     * Volta ao CD de uma entrega cancelada no caminho, a partir do passo do cancelamento:
+     * - indo para o cliente: rota nova no OSRM, da posição atual até o CD;
+     * - parado no cliente: a volta planejada (já sai do cliente);
+     * - já voltando ao CD: segue a volta normal, nada muda.
+     * O fim previsto passa a ser a chegada (e descarga) no CD.
+     */
+    private suspend fun comVoltaAoCd(cancelada: EntregaEntity, ua: String): EntregaEntity {
+        val viagem = viagemDaEntrega(cancelada.copy(canceladaEm = null))
+        val corte = passoDoCancelamento(cancelada)
+        if (corte >= viagem.passos.size) return cancelada
+        val inicioDaVolta = viagem.inicioDaEtapa(EtapaViagem.VOLTA) ?: viagem.passos.size
+        val ultimo = viagem.passos[(corte - 1).coerceAtLeast(0)]
+        val retorno = when {
+            corte >= inicioDaVolta || ultimo.etapa == EtapaViagem.ENTREGA -> cancelada.rotaVolta
+            else -> {
+                val aqui = GeoPoint(ultimo.telemetria.latitude, ultimo.telemetria.longitude)
+                PolylineCodec.codificar(listOf(aqui) + RotaService.calcular(aqui, CENTRO_DISTRIBUICAO, ua).pontos)
+            }
+        }
+        val comRetorno = cancelada.copy(rotaRetorno = retorno)
+        return comRetorno.copy(fimPrevistoEm = comRetorno.inicioEm + viagemDaEntrega(comRetorno).duracaoMs)
     }
 
     /**

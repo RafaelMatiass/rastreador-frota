@@ -118,12 +118,19 @@ fun HistoricoEntregaScreen(
         }
         val agora = passo * SimuladorFrota.INTERVALO_MS
         val situacao = e.situacao(agora)
-        val viagem = remember(e.remoteId, e.id, e.rotaIdaExecutada) { viagemDaEntrega(e) }
+        val viagem = remember(e.remoteId, e.id, e.inicioEm, e.rotaIdaExecutada, e.canceladaEm, e.rotaRetorno) { viagemDaEntrega(e) }
+        // Cancelada no caminho: o veículo segue até o CD saindo de onde parou.
+        val voltando = e.voltandoAposCancelar(agora)
+        val naRua = situacao == SituacaoEntrega.EM_ANDAMENTO || voltando
         // Até onde o veículo chegou: agora (em andamento), no cancelamento, ou a viagem toda.
         val ate = when (situacao) {
             SituacaoEntrega.AGENDADA -> -1
             SituacaoEntrega.EM_ANDAMENTO -> SimuladorFrota.indiceNaViagem(e, passo).toInt()
-            SituacaoEntrega.CANCELADA -> SimuladorFrota.indiceNaViagem(e, e.canceladaEm!! / SimuladorFrota.INTERVALO_MS).toInt()
+            SituacaoEntrega.CANCELADA -> when {
+                voltando -> SimuladorFrota.indiceNaViagem(e, passo).toInt()
+                e.rotaRetorno != null -> viagem.passos.lastIndex
+                else -> SimuladorFrota.indiceNaViagem(e, e.canceladaEm!! / SimuladorFrota.INTERVALO_MS).toInt()
+            }
             // Encadeada, a entrega termina antes do fim natural (sem a volta ao CD).
             SituacaoEntrega.CONCLUIDA -> ((e.fimPrevistoEm - e.inicioEm) / SimuladorFrota.INTERVALO_MS - 1).toInt()
         }.coerceAtMost(viagem.passos.lastIndex)
@@ -133,6 +140,7 @@ fun HistoricoEntregaScreen(
         val percorrido = viagem.percorrido(ate)
         val trechosFora = viagem.trechosForaDaRota(ate)
         val chegadaCliente = viagem.inicioDaEtapa(EtapaViagem.ENTREGA)?.let { e.inicioEm + it * SimuladorFrota.INTERVALO_MS }
+            ?.takeIf { e.canceladaEm == null || it <= e.canceladaEm }
 
         Column(
             Modifier
@@ -141,7 +149,7 @@ fun HistoricoEntregaScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
         ) {
-            MapaHistorico(e, viagem.planejado(EtapaViagem.IDA), voltaPlanejada, percorrido, trechosFora, situacao == SituacaoEntrega.EM_ANDAMENTO)
+            MapaHistorico(e, viagem.planejado(EtapaViagem.IDA), voltaPlanejada, percorrido, trechosFora, naRua)
 
             Column(Modifier.padding(Espaco.tela), verticalArrangement = Arrangement.spacedBy(Espaco.lg)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -185,11 +193,16 @@ fun HistoricoEntregaScreen(
                         )
                         HorizontalDivider(color = TrakSyncTheme.colors.surface2)
                         LinhaDado(
-                            if (chegadaCliente != null && chegadaCliente <= agora) "Chegada ao cliente" else "Chegada prevista",
-                            chegadaCliente?.let(::data) ?: "—"
+                            if ((chegadaCliente != null && chegadaCliente <= agora) || e.canceladaEm != null) "Chegada ao cliente" else "Chegada prevista",
+                            chegadaCliente?.let(::data) ?: if (e.canceladaEm != null) "Não chegou" else "—"
                         )
                         HorizontalDivider(color = TrakSyncTheme.colors.surface2)
                         when {
+                            e.canceladaEm != null && e.rotaRetorno != null -> {
+                                LinhaDado("Cancelada", data(e.canceladaEm))
+                                HorizontalDivider(color = TrakSyncTheme.colors.surface2)
+                                LinhaDado(if (voltando) "Volta prevista ao CD" else "Voltou ao CD", data(e.fimPrevistoEm))
+                            }
                             e.canceladaEm != null -> LinhaDado("Cancelada", data(e.canceladaEm))
                             encadeada -> LinhaDado(
                                 if (situacao == SituacaoEntrega.CONCLUIDA) "Seguiu para a próxima" else "Segue para a próxima",
@@ -217,10 +230,10 @@ fun HistoricoEntregaScreen(
 
                 avisoFila?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
                 Row(horizontalArrangement = Arrangement.spacedBy(Espaco.sm)) {
-                    if (situacao == SituacaoEntrega.EM_ANDAMENTO) {
+                    if (naRua) {
                         BotaoSecundario("Ver ao vivo", Icons.Filled.Map, { onVerNoMapa(e.placa) }, Modifier.weight(1f))
                     }
-                    if (ehGestor && e.ativa(agora)) {
+                    if (ehGestor && e.canceladaEm == null && e.ativa(agora)) {
                         BotaoPrincipal("Cancelar entrega", { confirmarCancelamento = true }, Modifier.weight(1f), icone = Icons.Filled.Cancel)
                     }
                 }
@@ -231,7 +244,7 @@ fun HistoricoEntregaScreen(
             DialogoConfirmacao(
                 titulo = "Cancelar a entrega para ${e.clienteNome}?",
                 mensagem = "As próximas entregas da fila de ${e.placa} continuam: o veículo segue para a próxima " +
-                    "(a rota é recalculada se precisar). Sem outra na fila, ele volta ao pátio do CD. O histórico até aqui é mantido.",
+                    "(a rota é recalculada se precisar). Sem outra na fila, ele volta ao CD a partir de onde está. O histórico até aqui é mantido.",
                 confirmar = "Cancelar entrega",
                 destrutivo = true,
                 icone = Icons.Filled.Cancel,

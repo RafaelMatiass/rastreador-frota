@@ -90,7 +90,28 @@ class Viagem internal constructor(
 
     /** Índice do primeiro passo de uma etapa (ex.: chegada ao cliente), ou null. */
     fun inicioDaEtapa(etapa: EtapaViagem): Int? = passos.indexOfFirst { it.etapa == etapa }.takeIf { it >= 0 }
+
+    /**
+     * Viagem cancelada no passo [corte]: mantém o que foi feito até ali e, a partir dali, volta ao
+     * CD por [retorno] (que sai do ponto onde o veículo estava). Se ele já estava voltando ao CD,
+     * nada muda: segue a volta normal.
+     */
+    internal fun cancelada(corte: Int, retorno: List<GeoPoint>, kmh: Int): Viagem {
+        val inicioDaVolta = inicioDaEtapa(EtapaViagem.VOLTA) ?: passos.size
+        if (corte >= inicioDaVolta || retorno.size < 2) return this
+        val montador = MontadorViagem()
+        montador.passos += passos.take(corte.coerceIn(1, passos.size))
+        val novos = montador
+            .percurso(retorno, retorno, EtapaViagem.VOLTA, kmh, semaforos = 1)
+            .parada(EtapaViagem.DESCARGA, PASSOS_DESCARGA, motorLigado = false, portasAbertas = true)
+            .passos
+        return Viagem(clienteNome, destinoNome, idaPlanejada, ida, retorno, novos)
+    }
 }
+
+/** Primeiro passo que deixa de seguir a entrega cancelada: o retorno ao CD começa nele. */
+fun passoDoCancelamento(e: EntregaEntity): Int =
+    ((e.canceladaEm ?: e.inicioEm) - e.inicioEm).floorDiv(SimuladorFrota.INTERVALO_MS).toInt() + 1
 
 /**
  * Simulação acelerada: a cada passo (3 s na tela) o veículo percorre o que andaria em
@@ -163,10 +184,14 @@ private val cacheViagens = ConcurrentHashMap<String, Viagem>()
 
 /** Viagem de uma entrega, montada uma vez (decodificar e amostrar a cada 3 s seria desperdício). */
 fun viagemDaEntrega(e: EntregaEntity): Viagem {
-    val chave = "${e.remoteId ?: "l${e.id}"}|${e.rotaIdaExecutada.hashCode()}|${e.rotaVolta.hashCode()}"
+    val retorno = e.rotaRetorno?.takeIf { e.canceladaEm != null }
+    val chave = "${e.remoteId ?: "l${e.id}"}|${e.inicioEm}|${e.rotaIdaExecutada.hashCode()}|${e.rotaVolta.hashCode()}" +
+        (retorno?.let { "|${e.canceladaEm}|${it.hashCode()}" } ?: "")
     return cacheViagens.getOrPut(chave) {
         val planejada = PolylineCodec.decodificar(e.rotaIda)
         val executada = if (e.rotaIdaExecutada == e.rotaIda) planejada else PolylineCodec.decodificar(e.rotaIdaExecutada)
-        montarViagem(e.clienteNome, e.endereco, planejada, executada, PolylineCodec.decodificar(e.rotaVolta), e.kmhIda, e.kmhVolta)
+        val viagem = montarViagem(e.clienteNome, e.endereco, planejada, executada, PolylineCodec.decodificar(e.rotaVolta), e.kmhIda, e.kmhVolta)
+        if (retorno == null) viagem
+        else viagem.cancelada(passoDoCancelamento(e), PolylineCodec.decodificar(retorno), e.kmhVolta)
     }
 }

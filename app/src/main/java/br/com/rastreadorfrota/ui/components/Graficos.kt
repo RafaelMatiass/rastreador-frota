@@ -18,6 +18,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.KeyboardReturn
+import androidx.compose.material.icons.filled.LocalParking
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Warehouse
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -136,41 +147,103 @@ fun Legenda(cor: Color, rotulo: String, valor: String, modifier: Modifier = Modi
     }
 }
 
-/** Stepper da viagem: CD → Ida → Entrega → Volta → Descarga, com a etapa atual destacada. */
+/**
+ * Stepper da viagem no estilo dos apps de entrega: um trilho contínuo atrás e um marcador por
+ * etapa (Ida → Entrega → Volta → Descarga). Etapas concluídas ganham um check, a atual fica
+ * maior, com o ícone da etapa e um halo, e as próximas ficam em cinza.
+ *
+ * Todos os marcadores ficam centralizados numa faixa de altura fixa, então o trilho é sempre
+ * uma linha reta, qualquer que seja o tamanho do marcador.
+ *
+ * [entregaCancelada]: a entrega foi cancelada e o veículo está voltando ao CD. A etapa
+ * "Entrega" aparece com um X vermelho (não houve entrega), em vez do check.
+ */
 @Composable
-fun StepperViagem(etapaAtual: EtapaViagem, modifier: Modifier = Modifier) {
+fun StepperViagem(etapaAtual: EtapaViagem, modifier: Modifier = Modifier, entregaCancelada: Boolean = false) {
     val indiceAtual = ETAPAS_VIAGEM.indexOf(etapaAtual)
     val ativa = MaterialTheme.colorScheme.primary
+    val noAtiva = MaterialTheme.colorScheme.onPrimary
     val inativa = TrakSyncTheme.colors.surface3
-    Row(
+    val textoInativo = TrakSyncTheme.colors.textSecondary
+    val erro = MaterialTheme.colorScheme.error
+    val pulada = { i: Int -> entregaCancelada && ETAPAS_VIAGEM[i] == EtapaViagem.ENTREGA && i < indiceAtual }
+    val n = ETAPAS_VIAGEM.size
+    // Até onde o trilho fica pintado: do centro do 1º marcador ao centro do atual (0..1).
+    val progresso by animateFloatAsState(
+        targetValue = if (indiceAtual <= 0) 0f else indiceAtual / (n - 1f),
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "progressoStepper"
+    )
+    Column(
         modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Etapa da viagem: ${etapaAtual.label}" },
-        verticalAlignment = Alignment.Top
+            .semantics {
+                contentDescription = "Etapa da viagem: ${etapaAtual.label}" + if (entregaCancelada) ", entrega cancelada" else ""
+            }
     ) {
-        ETAPAS_VIAGEM.forEachIndexed { i, etapa ->
-            val feito = indiceAtual >= 0 && i <= indiceAtual
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f).height(3.dp).background(if (i == 0) Color.Transparent else if (feito) ativa else inativa))
-                    Box(
-                        Modifier
-                            .size(if (i == indiceAtual) 14.dp else 10.dp)
-                            .background(if (feito) ativa else inativa, CircleShape)
-                    )
-                    Box(
-                        Modifier.weight(1f).height(3.dp)
-                            .background(if (i == ETAPAS_VIAGEM.lastIndex) Color.Transparent else if (indiceAtual > i) ativa else inativa)
-                    )
+        Box(Modifier.fillMaxWidth().height(36.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+                val inicio = size.width / (2 * n)
+                val fim = size.width - inicio
+                val y = size.height / 2
+                drawLine(inativa, Offset(inicio, y), Offset(fim, y), strokeWidth = size.height, cap = StrokeCap.Round)
+                if (progresso > 0f) {
+                    drawLine(ativa, Offset(inicio, y), Offset(inicio + (fim - inicio) * progresso, y), strokeWidth = size.height, cap = StrokeCap.Round)
                 }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                ETAPAS_VIAGEM.forEachIndexed { i, etapa ->
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        when {
+                            i == indiceAtual -> Box(
+                                Modifier.size(36.dp).background(ativa.copy(alpha = 0.18f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(Modifier.size(28.dp).background(ativa, CircleShape), contentAlignment = Alignment.Center) {
+                                    Icon(etapa.icone, contentDescription = null, tint = noAtiva, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                            pulada(i) -> Box(Modifier.size(22.dp).background(erro, CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(14.dp))
+                            }
+                            i < indiceAtual -> Box(Modifier.size(22.dp).background(ativa, CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Check, contentDescription = null, tint = noAtiva, modifier = Modifier.size(14.dp))
+                            }
+                            else -> Box(Modifier.size(22.dp).background(inativa, CircleShape), contentAlignment = Alignment.Center) {
+                                Icon(etapa.icone, contentDescription = null, tint = textoInativo, modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            ETAPAS_VIAGEM.forEachIndexed { i, etapa ->
                 Text(
-                    etapa.rotuloCurto,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (i == indiceAtual) MaterialTheme.colorScheme.primary else TrakSyncTheme.colors.textSecondary,
+                    if (pulada(i)) "Cancelada" else etapa.rotuloCurto,
+                    style = if (i == indiceAtual) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+                    fontWeight = if (i == indiceAtual) FontWeight.SemiBold else FontWeight.Normal,
+                    color = when {
+                        i == indiceAtual -> ativa
+                        pulada(i) -> erro
+                        i < indiceAtual -> MaterialTheme.colorScheme.onSurface
+                        else -> textoInativo
+                    },
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 4.dp)
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
     }
 }
+
+/** Ícone de cada etapa no stepper. */
+private val EtapaViagem.icone: ImageVector
+    get() = when (this) {
+        EtapaViagem.IDA -> Icons.Filled.LocalShipping
+        EtapaViagem.ENTREGA -> Icons.Filled.Inventory2
+        EtapaViagem.VOLTA -> Icons.Filled.KeyboardReturn
+        EtapaViagem.DESCARGA -> Icons.Filled.Warehouse
+        EtapaViagem.AGUARDANDO_ENTREGA, EtapaViagem.FORA_DE_OPERACAO -> Icons.Filled.LocalParking
+    }

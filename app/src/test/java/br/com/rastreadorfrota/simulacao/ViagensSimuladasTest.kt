@@ -164,4 +164,56 @@ class ViagensSimuladasTest {
         assertTrue(p.origem.distanceToAsDouble(cliente) > 50) // já saiu do cliente
         assertTrue(p.origemNome.startsWith("posição de"))
     }
+
+    @Test
+    fun `cancelada no meio da ida volta ao CD a partir de onde estava`() {
+        val inicio = 5_000_000L * SimuladorFrota.INTERVALO_MS
+        val original = entrega(1, inicio)
+        val v = viagemDaEntrega(original)
+        val meioDaIda = v.inicioDaEtapa(EtapaViagem.ENTREGA)!! / 2
+        val canceladaEm = inicio + meioDaIda * SimuladorFrota.INTERVALO_MS + 500
+        val onde = v.passos[meioDaIda].telemetria
+        val aqui = GeoPoint(onde.latitude, onde.longitude)
+        // Retorno sintético: da posição do cancelamento direto para o CD.
+        val retorno = listOf(aqui, cd)
+        val cancelada = original.copy(canceladaEm = canceladaEm, rotaRetorno = PolylineCodec.codificar(retorno))
+        val vc = viagemDaEntrega(cancelada)
+        val comFim = cancelada.copy(fimPrevistoEm = inicio + vc.duracaoMs)
+
+        assertEquals(meioDaIda + 1, passoDoCancelamento(cancelada))
+        // Até o cancelamento, o mesmo caminho; nunca chega ao cliente.
+        assertNull(vc.inicioDaEtapa(EtapaViagem.ENTREGA))
+        val primeiroDaVolta = vc.passos[meioDaIda + 1]
+        assertEquals(EtapaViagem.VOLTA, primeiroDaVolta.etapa)
+        // Sai de perto de onde parou (não "teleporta" para o CD).
+        assertTrue(GeoPoint(primeiroDaVolta.telemetria.latitude, primeiroDaVolta.telemetria.longitude).distanceToAsDouble(aqui) < 200)
+        assertEquals(EtapaViagem.DESCARGA, vc.passos.last().etapa)
+        assertTrue(GeoPoint(vc.passos.last().telemetria.latitude, vc.passos.last().telemetria.longitude).distanceToAsDouble(cd) < 5)
+
+        // Depois de cancelar, ainda está na rua (voltando) e segue ocupando o veículo.
+        val depois = canceladaEm + 10 * SimuladorFrota.INTERVALO_MS
+        assertEquals(SituacaoEntrega.CANCELADA, comFim.situacao(depois))
+        assertTrue(comFim.voltandoAposCancelar(depois))
+        assertTrue(comFim.ativa(depois))
+        assertEquals(EtapaViagem.VOLTA, SimuladorFrota.situacao(comFim, depois / SimuladorFrota.INTERVALO_MS)!!.etapa)
+        assertFalse(comFim.naRua(comFim.fimPrevistoEm))
+    }
+
+    @Test
+    fun `cancelada ja voltando ao CD segue a volta normal`() {
+        val inicio = 5_000_000L * SimuladorFrota.INTERVALO_MS
+        val original = entrega(1, inicio)
+        val v = viagemDaEntrega(original)
+        val naVolta = inicio + (v.inicioDaEtapa(EtapaViagem.VOLTA)!! + 3) * SimuladorFrota.INTERVALO_MS
+        val vc = viagemDaEntrega(original.copy(canceladaEm = naVolta, rotaRetorno = original.rotaVolta))
+        assertEquals(v.passos.size, vc.passos.size)
+    }
+
+    @Test
+    fun `cancelada antes de sair nao volta para a rua`() {
+        val inicio = 5_000_000L * SimuladorFrota.INTERVALO_MS
+        val naFila = entrega(1, inicio).copy(canceladaEm = inicio - 1000)
+        assertFalse(naFila.ativa(inicio + 1000))
+        assertFalse(naFila.naRua(inicio + 1000))
+    }
 }

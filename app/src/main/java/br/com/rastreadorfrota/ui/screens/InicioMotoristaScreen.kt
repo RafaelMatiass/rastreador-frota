@@ -196,7 +196,7 @@ fun InicioMotoristaScreen(
                 SecaoTitulo("Viagem atual", Modifier.padding(horizontal = Espaco.tela))
                 CardTrak(Modifier.padding(horizontal = Espaco.tela).fillMaxWidth()) {
                     Column(Modifier.padding(Espaco.lg)) {
-                        StepperViagem(aoVivo.viagem.etapa)
+                        StepperViagem(aoVivo.viagem.etapa, entregaCancelada = aoVivo.entrega?.canceladaEm != null)
                         Spacer(Modifier.height(Espaco.md))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.error)

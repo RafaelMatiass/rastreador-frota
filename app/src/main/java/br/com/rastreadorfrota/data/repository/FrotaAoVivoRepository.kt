@@ -3,7 +3,6 @@ package br.com.rastreadorfrota.data.repository
 import android.content.Context
 import br.com.rastreadorfrota.data.local.AppDatabase
 import br.com.rastreadorfrota.data.local.entity.EntregaEntity
-import br.com.rastreadorfrota.data.local.entity.SituacaoEntrega
 import br.com.rastreadorfrota.data.local.entity.MotoristaEntity
 import br.com.rastreadorfrota.data.local.entity.VeiculoEntity
 import br.com.rastreadorfrota.simulacao.EtapaViagem
@@ -68,7 +67,7 @@ class FrotaAoVivoRepository private constructor(db: AppDatabase) {
             val agora = passo * SimuladorFrota.INTERVALO_MS
             // Entrega que ocupa cada placa agora (se houver duas por engano de sincronização, vale a mais recente).
             val entregaPorPlaca = entregas
-                .filter { it.situacao(agora) == SituacaoEntrega.EM_ANDAMENTO }
+                .filter { it.naRua(agora) }
                 .groupBy { it.placa.uppercase() }
                 .mapValues { (_, lista) -> lista.maxBy { it.inicioEm } }
             veiculos

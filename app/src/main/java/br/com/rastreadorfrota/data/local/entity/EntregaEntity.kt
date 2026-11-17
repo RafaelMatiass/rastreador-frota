@@ -49,6 +49,11 @@ data class EntregaEntity(
     val inicioEm: Long,
     val fimPrevistoEm: Long,
     val canceladaEm: Long? = null,
+    /**
+     * Cancelada no caminho, sem outra entrega na fila: rota de volta ao CD a partir de onde o
+     * veículo estava no cancelamento (ver `viagemDaEntrega`). Null quando não houve retorno.
+     */
+    val rotaRetorno: String? = null,
     val motoristaNome: String? = null,
     val criadaPorUid: String? = null,
     val criadaEm: Long = System.currentTimeMillis(),
@@ -64,7 +69,15 @@ data class EntregaEntity(
         else -> SituacaoEntrega.CONCLUIDA
     }
 
-    /** Ocupa o veículo: ainda não terminou nem foi cancelada. */
+    /** Cancelada, mas o veículo ainda está voltando ao CD a partir do ponto do cancelamento. */
+    fun voltandoAposCancelar(agora: Long = System.currentTimeMillis()): Boolean =
+        canceladaEm != null && rotaRetorno != null && agora >= inicioEm && agora < fimPrevistoEm
+
+    /** O veículo está na rua por causa desta entrega (em andamento ou voltando após cancelar). */
+    fun naRua(agora: Long = System.currentTimeMillis()): Boolean =
+        situacao(agora) == SituacaoEntrega.EM_ANDAMENTO || voltandoAposCancelar(agora)
+
+    /** Ocupa o veículo: ainda não terminou (incluindo a volta ao CD depois de um cancelamento). */
     fun ativa(agora: Long = System.currentTimeMillis()): Boolean =
-        situacao(agora).let { it == SituacaoEntrega.EM_ANDAMENTO || it == SituacaoEntrega.AGENDADA }
+        situacao(agora) == SituacaoEntrega.AGENDADA || naRua(agora)
 }
