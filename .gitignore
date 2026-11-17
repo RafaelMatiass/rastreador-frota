@@ -9,3 +9,6 @@ local.properties
 .cxx
 app/build/
 build/
+# Firebase CLI
+firebase-debug.log
+.firebase/

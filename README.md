@@ -283,6 +283,9 @@ chore: configura AppDatabase como singleton
 3. Configure um **AVD com Google Play Store** (necessário para o Firebase Auth) ou use um dispositivo físico
 4. Crie uma chave gratuita em [myprojects.geoapify.com](https://myprojects.geoapify.com) e adicione ao `local.properties` da raiz: `GEOAPIFY_API_KEY=sua_chave` (endereços, Entrega 7)
 5. Rode o projeto (`Run ▶️`)
+6. Regras do Firestore: publique `firestore.rules` no projeto (`npx firebase-tools deploy --only firestore:rules`, usando o `firebase.json` da raiz) ou cole no Console do Firebase
+
+> **Equipe de testes (UAT):** não é preciso compilar. Instale o APK da Release e siga o [`docs/uat.md`](docs/uat.md).
 
 ---
 
